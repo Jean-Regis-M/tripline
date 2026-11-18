@@ -9,7 +9,7 @@
   },
   "scripts": {
     "start": "node src/server.ts",
-    "test": "node --test test/",
+    "test": "node --test \"test/**/*.test.ts\"",
     "typecheck": "tsc --noEmit",
     "build": "tsc -p tsconfig.web.json",
     "scan": "node src/cli.ts scan fixtures/poisoned.manifest.json",
