@@ -12,60 +12,59 @@
 <a class="skip" href="#replay">Skip to the demo</a>
 <header class="top">
   <a class="brand" href="#top" aria-label="Tripline home">
-    <svg width="26" height="26" viewBox="0 0 32 32" aria-hidden="true"><rect width="32" height="32" rx="8" fill="#ff5d4a"/><path d="M6 23 L13 9 L19 18 L26 7" fill="none" stroke="#0b0f14" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/></svg>
+    <svg class="mark" width="30" height="30" viewBox="0 0 32 32" aria-hidden="true"><rect x="3" y="19" width="4" height="9" fill="currentColor"/><rect x="25" y="19" width="4" height="9" fill="currentColor"/><path d="M7 21.5 L13.5 21.5 L16 6 L18.5 21.5 L25 21.5" fill="none" stroke="var(--trip)" stroke-width="2.4" stroke-linejoin="miter"/></svg>
     <span>Tripline</span>
   </a>
   <nav aria-label="Sections">
-    <a href="#how">How it works</a><a href="#replay">Attack replay</a><a href="#scan">Scanner</a><a href="#bench">Results</a><a href="#limits">Limits</a>
+    <a href="#how">Method</a><a href="#replay">Replay</a><a href="#scan">Scanner</a><a href="#bench">Results</a><a href="#limits">Limits</a>
   </nav>
 </header>
 
 <main id="top">
 <section class="hero">
   <div class="hero-copy">
-    <p class="eyebrow">Open source &middot; runs 100% in your browser</p>
-    <h1>An AI agent will do what the <em>text</em> tells it to.<br>Tripline decides what it is <em>allowed</em> to do.</h1>
-    <p class="lead">Email, web pages and third-party tools can smuggle instructions into an agent. Tripline follows every piece of data from where it was read to where it is about to be sent, and trips the wire before a secret leaves.</p>
+    <p class="kicker">Open source &middot; runs in your browser &middot; GenHacks 2026</p>
+    <h1>An agent will do what the <em>text</em> tells it to.</h1>
+    <p class="deck">Tripline decides what it is <strong>allowed</strong> to do. It follows every piece of data from the moment it is read to the moment it is about to be sent, and trips the wire before a secret leaves.</p>
     <div class="cta">
       <a class="btn primary" href="#replay">Watch an attack get stopped</a>
       <a class="btn" href="#scan">Scan a tool manifest</a>
     </div>
-    <dl class="stats" id="stats" aria-live="polite"></dl>
   </div>
   <figure class="hero-art" aria-label="Diagram: a secret leaving an agent is blocked by Tripline while a legitimate message passes">
-    <svg viewBox="0 0 560 360" role="img" aria-hidden="true">
-      <defs>
-        <linearGradient id="g1" x1="0" x2="1"><stop offset="0" stop-color="#7cc4ff" stop-opacity=".0"/><stop offset="1" stop-color="#7cc4ff" stop-opacity=".35"/></linearGradient>
-      </defs>
-      <g class="lane"><rect x="12" y="40" width="130" height="64" rx="12"/><text x="77" y="68">Untrusted</text><text x="77" y="88" class="sub">email, web, tools</text></g>
-      <g class="lane"><rect x="12" y="148" width="130" height="64" rx="12"/><text x="77" y="176">Agent</text><text x="77" y="196" class="sub">follows the text</text></g>
-      <g class="lane"><rect x="12" y="256" width="130" height="64" rx="12"/><text x="77" y="284">Private data</text><text x="77" y="304" class="sub">keys, files</text></g>
-      <path class="wire" d="M142 72 C200 72 200 180 252 180"/><path class="wire" d="M142 180 L252 180"/><path class="wire" d="M142 288 C200 288 200 180 252 180"/>
-      <g class="gate"><rect x="252" y="110" width="56" height="140" rx="14"/><path d="M262 232 L274 160 L288 200 L300 132" class="zig"/><text x="280" y="268" class="gtxt">Tripline</text></g>
-      <path class="wire out" d="M308 180 L410 180"/>
-      <g class="lane out"><rect x="410" y="60" width="138" height="64" rx="12"/><text x="479" y="88">me@student.test</text><text x="479" y="108" class="sub">allow-listed</text></g>
-      <g class="lane evil"><rect x="410" y="236" width="138" height="64" rx="12"/><text x="479" y="264">attacker.test</text><text x="479" y="284" class="sub">not allow-listed</text></g>
-      <path class="wire out" d="M358 180 C380 180 380 92 410 92"/><path class="wire evilw" d="M358 180 C380 180 380 268 410 268"/>
-      <circle r="7" class="pk bad" opacity="0"><animateMotion dur="5s" repeatCount="indefinite" keyPoints="0;0.62;0.62;0.62" keyTimes="0;0.55;0.8;1" calcMode="linear" path="M142 288 C200 288 200 180 252 180"/><animate attributeName="opacity" values="1;1;0;0" keyTimes="0;0.55;0.62;1" dur="5s" repeatCount="indefinite"/></circle>
-      <g class="burst"><circle cx="252" cy="180" r="10"><animate attributeName="r" values="8;34" keyTimes="0;1" begin="2.75s;7.75s" dur=".6s" repeatCount="1" fill="freeze"/><animate attributeName="opacity" values=".9;0" begin="2.75s;7.75s" dur=".6s" repeatCount="1" fill="freeze"/></circle></g>
-      <circle r="7" class="pk good" opacity="0"><animateMotion dur="5s" begin="2.5s" repeatCount="indefinite" path="M142 180 L308 180 C358 180 380 92 479 92"/><animate attributeName="opacity" values="0;1;1;0" keyTimes="0;.1;.85;1" dur="5s" begin="2.5s" repeatCount="indefinite"/></circle>
+    <svg viewBox="0 0 560 380" role="img" aria-hidden="true">
+      <g class="grid"><path d="M0 40H560M0 120H560M0 200H560M0 280H560M0 360H560M70 0V380M210 0V380M350 0V380M490 0V380"/></g>
+      <g class="node"><rect x="12" y="40" width="130" height="62" rx="2"/><text x="24" y="66">UNTRUSTED</text><text x="24" y="86" class="sub">email, web, tools</text></g>
+      <g class="node"><rect x="12" y="150" width="130" height="62" rx="2"/><text x="24" y="176">AGENT</text><text x="24" y="196" class="sub">obeys the text</text></g>
+      <g class="node"><rect x="12" y="260" width="130" height="62" rx="2"/><text x="24" y="286">PRIVATE</text><text x="24" y="306" class="sub">keys, files</text></g>
+      <path class="wire" d="M142 71 C200 71 200 181 252 181"/><path class="wire" d="M142 181 L252 181"/><path class="wire" d="M142 291 C200 291 200 181 252 181"/>
+      <g class="post"><rect x="246" y="116" width="10" height="130"/><rect x="304" y="116" width="10" height="130"/></g>
+      <path class="taut" d="M256 181 L268 181 L280 128 L292 181 L304 181"/>
+      <text x="280" y="270" class="gate">TRIPLINE</text>
+      <path class="wire out" d="M314 181 L400 181"/>
+      <g class="node ok"><rect x="410" y="52" width="140" height="62" rx="2"/><text x="422" y="78">me@student.test</text><text x="422" y="98" class="sub">allow-listed</text></g>
+      <g class="node evil"><rect x="410" y="248" width="140" height="62" rx="2"/><text x="422" y="274">attacker.test</text><text x="422" y="294" class="sub">not allow-listed</text></g>
+      <path class="wire out" d="M358 181 C380 181 380 83 410 83"/><path class="wire evilw" d="M358 181 C380 181 380 279 410 279"/>
+      <circle r="6" class="pk bad" opacity="0"><animateMotion dur="5s" repeatCount="indefinite" keyPoints="0;0.62;0.62;0.62" keyTimes="0;0.55;0.8;1" calcMode="linear" path="M142 291 C200 291 200 181 252 181"/><animate attributeName="opacity" values="1;1;0;0" keyTimes="0;0.55;0.62;1" dur="5s" repeatCount="indefinite"/></circle>
+      <g class="burst"><circle cx="252" cy="181" r="8"><animate attributeName="r" values="8;34" keyTimes="0;1" begin="2.75s;7.75s" dur=".6s" repeatCount="1" fill="freeze"/><animate attributeName="opacity" values=".9;0" begin="2.75s;7.75s" dur=".6s" repeatCount="1" fill="freeze"/></circle></g>
+      <circle r="6" class="pk good" opacity="0"><animateMotion dur="5s" begin="2.5s" repeatCount="indefinite" path="M142 181 L314 181 C358 181 380 83 410 83"/><animate attributeName="opacity" values="0;1;1;0" keyTimes="0;.1;.85;1" dur="5s" begin="2.5s" repeatCount="indefinite"/></circle>
     </svg>
-    <figcaption><span class="dot bad"></span>stolen key blocked <span class="dot good"></span>legitimate send allowed</figcaption>
+    <figcaption><span class="dot bad"></span>stolen key stopped <span class="dot good"></span>legitimate send passes</figcaption>
   </figure>
+  <dl class="stats" id="stats" aria-live="polite"></dl>
 </section>
 
 <section id="how" class="band">
-  <h2>Three layers, no model trust required</h2>
-  <div class="cards">
-    <article><span class="num">1</span><h3>Scan before install</h3><p>Static analysis of MCP tool manifests finds hidden instructions, invisible Unicode, steering of other tools, sensitive file references and data smuggling parameters. A SHA-256 lockfile catches a tool that changes after approval (a rug pull).</p></article>
-    <article><span class="num">2</span><h3>Track at runtime</h3><p>Every tool output is labelled <b>private</b> or <b>untrusted</b>. Fragments of private data are fingerprinted, including their base64, hex and URL encodings, so copies are recognised inside later arguments.</p></article>
-    <article><span class="num">3</span><h3>Decide deterministically</h3><p>Three small rules run before each outbound call: no private data to unknown destinations, no destinations chosen by untrusted text, and human approval when a session has seen both untrusted input and private data.</p></article>
+  <header class="sec-head"><span class="no">01</span><h2>Method</h2><p>Three layers. None of them asks a model to judge anything.</p></header>
+  <div class="triptych">
+    <article><h3>Scan before install</h3><p>Static analysis of MCP tool manifests finds hidden instructions, invisible Unicode, steering of other tools, sensitive file references and data smuggling parameters. A SHA-256 lockfile catches a tool that changes after approval, the so called rug pull.</p></article>
+    <article><h3>Track at runtime</h3><p>Every tool output is labelled <b>private</b> or <b>untrusted</b>. Fragments of private data are fingerprinted, including their base64, hex and URL forms, so copies are recognised inside later arguments.</p></article>
+    <article><h3>Decide with three rules</h3><p>No private data to unknown destinations. No destinations chosen by untrusted text. And a session that has seen both untrusted input and private data must get human approval before it sends anything outside.</p></article>
   </div>
 </section>
 
 <section id="replay" class="band">
-  <h2>Attack replay</h2>
-  <p class="sec-lead">Pick a scenario. The same agent runs twice: once unprotected, once behind Tripline.</p>
+  <header class="sec-head"><span class="no">02</span><h2>Replay</h2><p>The same agent runs twice: once unprotected, once behind Tripline.</p></header>
   <div class="picker" id="picker" role="tablist" aria-label="Scenarios"></div>
   <div id="scenarioInfo" class="info"></div>
   <div class="toolbar"><button id="replayBtn" class="btn small">Replay step by step</button></div>
@@ -77,8 +76,7 @@
 </section>
 
 <section id="scan" class="band">
-  <h2>Tool manifest scanner</h2>
-  <p class="sec-lead">Paste any MCP style manifest, or load an example. Nothing leaves your browser.</p>
+  <header class="sec-head"><span class="no">03</span><h2>Scanner</h2><p>Paste any MCP style manifest, or load an example. Nothing leaves your browser.</p></header>
   <div class="toolbar">
     <button id="loadPoisoned" class="btn small">Poisoned example</button>
     <button id="loadClean" class="btn small">Clean example</button>
@@ -94,13 +92,12 @@
 </section>
 
 <section id="bench" class="band">
-  <h2>Results</h2>
-  <p class="sec-lead">Computed live in your browser from the same scenarios the automated test suite asserts.</p>
+  <header class="sec-head"><span class="no">04</span><h2>Results</h2><p>Computed live in your browser from the same scenarios the automated tests assert.</p></header>
   <div class="tablewrap"><table id="benchTable"><thead><tr><th>Scenario</th><th>Type</th><th>Leak without</th><th>Leak with</th><th>Task completed</th><th>Calls blocked</th></tr></thead><tbody></tbody></table></div>
 </section>
 
 <section id="limits" class="band">
-  <h2>What Tripline does not do</h2>
+  <header class="sec-head"><span class="no">05</span><h2>Limits</h2><p>What Tripline does not do.</p></header>
   <ul class="limits">
     <li><b>It is not a model.</b> The demo agent is scripted. Tripline's decisions come from deterministic rules, and a real model would only change what the agent tries to do. This is not a proof of security.</li>
     <li><b>Provenance is fragment based.</b> Copies, case and spacing changes, reversal and common encodings are caught. ROT13 or paraphrase is caught only by the session level approval rule, which costs a prompt for the user.</li>
