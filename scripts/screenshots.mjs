@@ -9,11 +9,13 @@ mkdirSync(outDir, { recursive: true });
 const edge = 'C:/Program Files (x86)/Microsoft/Edge/Application/msedge.exe';
 
 const browser = await chromium.launch({ executablePath: edge, headless: true });
-const ctx = await browser.newContext({ viewport: { width: 1440, height: 900 }, deviceScaleFactor: 2, colorScheme: 'dark', reducedMotion: 'reduce' });
+const ctx = await browser.newContext({ viewport: { width: 1440, height: 900 }, deviceScaleFactor: 2, colorScheme: 'light', reducedMotion: 'reduce' });
 const page = await ctx.newPage();
 await page.goto(base, { waitUntil: 'networkidle' });
+await page.mouse.move(2, 2);
 const shot = async (name, target) => {
   if (!target) return page.screenshot({ path: `${outDir}${name}.png` });
+  await page.mouse.move(2, 2);
   const loc = page.locator(target);
   await loc.evaluate((e) => { e.style.paddingLeft = e.style.paddingRight = '28px'; e.style.paddingBottom = '28px'; });
   await loc.screenshot({ path: `${outDir}${name}.png` });
@@ -32,10 +34,12 @@ await shot('07-scanner-blocked', '#scan');
 await page.locator('#doLock').click();
 await page.locator('#doPull').click();
 await page.locator('#doVerify').click();
+const drift = await page.locator('#scanOut .verdict').innerText();
+if (!/DRIFT/.test(drift)) throw new Error('UI smoke test failed: rug pull was not detected, got: ' + drift);
 await shot('08-rug-pull-drift', '#scan');
 await shot('09-results', '#bench');
 await shot('10-limits', '#limits');
-const m = await browser.newContext({ viewport: { width: 390, height: 844 }, deviceScaleFactor: 3, colorScheme: 'dark', isMobile: true, reducedMotion: 'reduce' });
+const m = await browser.newContext({ viewport: { width: 390, height: 844 }, deviceScaleFactor: 3, colorScheme: 'light', isMobile: true, reducedMotion: 'reduce' });
 const mp = await m.newPage();
 await mp.goto(base, { waitUntil: 'networkidle' });
 await mp.screenshot({ path: `${outDir}11-mobile-hero.png` });
