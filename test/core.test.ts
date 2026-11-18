@@ -71,6 +71,18 @@ test('scenario paraphrased-exfil is caught by the trifecta rule, not string matc
   assert.deepEqual(hit!.rules.map((r) => r.id), ['R2']);
 });
 
+test('scenario multi-vector: three secret kinds over three channels are all stopped, and R4 names the kinds', () => {
+  const sc = scenarios.find((s) => s.id === 'multi-vector')!;
+  const off = runScenario(sc, { guarded: false });
+  assert.equal(off.leakedSteps.length, 3, 'unprotected, all three channels leak');
+  const on = runScenario(sc, { guarded: true });
+  assert.equal(on.leaked, false);
+  assert.equal(on.blocked, 3);
+  const text = on.steps.flatMap((s) => s.rules.map((r) => r.detail)).join(' ');
+  for (const kind of ['aws-secret-key', 'private-key', 'credit-card', 'us-ssn']) assert.match(text, new RegExp(kind), `${kind} should be named`);
+  assert.ok(on.completed);
+});
+
 test('monitor mode reports but does not block', () => {
   const sc = { ...scenarios[0], policy: { ...scenarios[0].policy, mode: 'monitor' as const } };
   const on = runScenario(sc, { guarded: true });
