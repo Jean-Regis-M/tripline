@@ -8,5 +8,5 @@ test('scanner corpus: no legitimate tool is blocked, known attack classes are al
   assert.ok(r.benign.review <= 3, 'review prompts on legitimate tools should stay rare');
   assert.equal(r.attackClassesCovered.detected, r.attackClassesCovered.total);
   assert.ok(r.malicious.blocked / r.malicious.total >= 0.65, 'most poisoned tools should be hard blocked, not just reviewed');
-  assert.deepEqual(r.malicious.missed.map((m) => m.split('/')[0]), ['pure-paraphrase', 'pure-paraphrase', 'pure-paraphrase'], 'the only misses are the documented paraphrase evasions');
+  assert.deepEqual(r.malicious.missed.map((m) => m.split('/')[0]), ['euphemism', 'euphemism', 'euphemism'], 'the only misses are the documented euphemism evasions');
 });

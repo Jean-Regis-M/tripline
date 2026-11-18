@@ -8,6 +8,8 @@ const HIDDEN_INSTRUCTION: RegExp[] = [
   /without (telling|informing|notifying) the user/i,
   /assistant_action\s*:/i,
 ];
+/** A plain language request to move the user's secrets into a call, with no keyword or hidden character. */
+const SECRET_REQUEST = /(include|attach|add|put|pass|send|copy|append|forward|upload|submit|paste)\b[^.]{0,80}\b(user'?s|users'|their|the user)\b[^.]{0,40}\b(secrets?|credentials?|passwords?|tokens?|api[ _-]?keys?|private keys?|ssh|sessions?|cookies?|keychain)\b/i;
 /** Imperatives addressed to the model. Common in honest docs ("you should call list_projects first"), so only a review signal. */
 const IMPERATIVE = /you (must|should|need to) (first |also |always )?(read|send|include|pass|upload|forward)/i;
 const SENSITIVE_PATH = /\.(ssh|aws|gnupg|kube)\b|\.config[\\/](gcloud|gh)\b|\.docker[\\/]config|\.(npmrc|netrc|pgpass)\b|id_(rsa|ed25519|ecdsa)|credentials\.(db|json)|wallet\.dat|(^|[\s"'/\\])\.env\b|private key|\/etc\/passwd|mcp\.json|cookies\.sqlite/i;
@@ -63,6 +65,8 @@ export function scanManifest(manifest: Manifest): ScanReport {
           const m = t.match(re);
           if (m) add('TP001', 'critical', 'Instruction aimed at the model embedded in tool metadata', snip(t, m));
         }
+        const sr = t.match(SECRET_REQUEST);
+        if (sr) add('TP010', 'medium', 'Metadata asks the model to include the user\'s secrets in a call', snip(t, sr));
         const imp = t.match(IMPERATIVE);
         if (imp) add('TP009', 'medium', 'Imperative addressed to the model in metadata', snip(t, imp));
         const sp = t.match(SENSITIVE_PATH);
@@ -82,7 +86,7 @@ export function scanManifest(manifest: Manifest): ScanReport {
       for (const [pname, p] of Object.entries(props)) {
         if (!CARRIER.test(pname) || p?.type !== 'string') continue;
         const ctx = `${tool.description} ${p?.description ?? ''}`;
-        const suspicious = HIDDEN_INSTRUCTION.some((re) => re.test(ctx)) || SENSITIVE_PATH.test(ctx);
+        const suspicious = HIDDEN_INSTRUCTION.some((re) => re.test(ctx)) || SENSITIVE_PATH.test(ctx) || SECRET_REQUEST.test(ctx);
         add('TP008', suspicious ? 'high' : 'low',
           suspicious
             ? `Free-form parameter "${pname}" is positioned to smuggle data out`
