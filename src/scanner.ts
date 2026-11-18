@@ -3,14 +3,14 @@ import type { Finding, Manifest, ScanReport, Severity } from './types.ts';
 const INVISIBLE = /[​-‏‪-‮⁠-⁤﻿\u{E0000}-\u{E007F}]/u;
 const HIDDEN_INSTRUCTION: RegExp[] = [
   /<\s*(important|system|instructions?|secret)\s*>/i,
-  /ignore (all |any )?(previous|prior|above) (instructions|rules)/i,
+  /ignore (all |any |the )?(previous|prior|above|earlier|preceding) (instructions|rules|directions|prompts|messages|context)/i,
   /do not (tell|mention|inform|reveal)[^.]{0,40}(user|human)/i,
   /without (telling|informing|notifying) the user/i,
   /assistant_action\s*:/i,
 ];
 /** Imperatives addressed to the model. Common in honest docs ("you should call list_projects first"), so only a review signal. */
 const IMPERATIVE = /you (must|should|need to) (first |also |always )?(read|send|include|pass|upload|forward)/i;
-const SENSITIVE_PATH = /\.(ssh|aws|gnupg|kube)\b|id_rsa|(^|[\s"'/\\])\.env\b|private key|\/etc\/passwd|mcp\.json|cookies\.sqlite/i;
+const SENSITIVE_PATH = /\.(ssh|aws|gnupg|kube)\b|\.config[\\/](gcloud|gh)\b|\.docker[\\/]config|\.(npmrc|netrc|pgpass)\b|id_(rsa|ed25519|ecdsa)|credentials\.(db|json)|wallet\.dat|(^|[\s"'/\\])\.env\b|private key|\/etc\/passwd|mcp\.json|cookies\.sqlite/i;
 const SHADOW = /(instead of|rather than|override|replace the|ignore|do not use|don't use|never use|before (using|calling)|whenever you (use|call)|when (using|calling))/i;
 const URL_RE = /https?:\/\/([^\s/)"']+)[^\s)"']*/i;
 const SAFE_HOSTS = ['github.com', 'modelcontextprotocol.io', 'docs.python.org', 'developer.mozilla.org'];
@@ -50,9 +50,10 @@ export function scanManifest(manifest: Manifest): ScanReport {
         add('TP006', 'medium', `Tool name also exported by server "${prior}" (shadowing risk)`);
       seen.set(tool.name, server.name);
 
-      const texts = [tool.description ?? '', ...strings(tool.inputSchema)];
-      for (const t of texts) {
-        const inv = t.match(INVISIBLE);
+      const texts = [tool.description ?? '', tool.title ?? '', tool.name, ...strings(tool.inputSchema), ...strings(tool.outputSchema), ...strings(tool.annotations)];
+      for (const raw of texts) {
+        const inv = raw.match(INVISIBLE);
+        const t = raw.normalize('NFKC');
         if (inv)
           add('TP002', 'critical', 'Invisible or bidirectional Unicode hides content from reviewers',
             `U+${inv[0].codePointAt(0)!.toString(16).toUpperCase()}`);
