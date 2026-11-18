@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Tripline: a firewall for AI agent tool calls</title>
-<meta name="description" content="Tripline tracks where an AI agent's data came from and blocks tool calls that would leak it. Prompt injection stopped by design, not by hoping the model behaves.">
+<meta name="description" content="Tripline tracks where an AI agent's data came from and blocks tool calls that would leak it. Deterministic data flow rules between an agent and its tools: no model in the loop to fool.">
 <link rel="icon" href="favicon.svg" type="image/svg+xml">
 <link rel="stylesheet" href="app.css">
 </head>
@@ -102,8 +102,8 @@
 <section id="limits" class="band">
   <h2>What Tripline does not do</h2>
   <ul class="limits">
-    <li><b>It is not a model.</b> The demo agent is scripted. Tripline's guarantees come from the policy layer, and a real model would only change what the agent tries to do.</li>
-    <li><b>Provenance is fragment based.</b> Exact copies and common encodings are caught. Paraphrased or heavily transformed data is caught only by the session level approval rule, which costs a prompt for the user.</li>
+    <li><b>It is not a model.</b> The demo agent is scripted. Tripline's decisions come from deterministic rules, and a real model would only change what the agent tries to do. This is not a proof of security.</li>
+    <li><b>Provenance is fragment based.</b> Copies, case and spacing changes, reversal and common encodings are caught. ROT13 or paraphrase is caught only by the session level approval rule, which costs a prompt for the user.</li>
     <li><b>Policy needs labels.</b> Tools are labelled by hand or by a name based heuristic. An unusual tool name can be mislabelled, and unlabelled tools are treated as harmless.</li>
     <li><b>The scanner is heuristic.</b> It has false negatives. Pair it with pinning and the runtime guard.</li>
   </ul>

@@ -5,7 +5,7 @@
 # Tripline
 
 **An information flow firewall for AI agent tool calls.**
-*Prompt injection stopped by design, not by hoping the model behaves.*
+*Deterministic data flow rules between your agent and its tools. There is no model in the loop to fool.*
 
 [![CI](https://github.com/Jean-Regis-M/tripline/actions/workflows/ci.yml/badge.svg)](https://github.com/Jean-Regis-M/tripline/actions/workflows/ci.yml)
 ![License](https://img.shields.io/badge/license-MIT-3ddc97)
@@ -22,12 +22,12 @@
 
 1. **See it.** Open the [live demo](https://jean-regis-m.github.io/tripline/), pick *Poisoned e-mail steals cloud keys* and press *Replay step by step*. The left column leaks a key, the right column is stopped.
 2. **Break it.** Paste your own tool manifest into the scanner, or edit the poisoned one and rescan.
-3. **Trust it.** `npm install && npm test` runs 15 tests, including a real MCP round trip over a stdio pipe. `npm run evaluate` prints scanner quality, including the false positives it first had.
+3. **Trust it.** `npm install && npm test` runs 27 tests, including real MCP round trips over a stdio pipe and the bypasses an independent review found. `npm run evaluate` prints scanner quality, including the false positives it first had.
 
 | Criterion | Where the evidence is |
 |---|---|
 | **Impact** | A concrete, current failure (agents obeying hidden instructions) with a defence usable today through the MCP proxy |
-| **Technical execution** | Zero dependency TypeScript engine, 15 passing tests, CI, protocol level proxy test, measured scanner quality |
+| **Technical execution** | Zero dependency TypeScript engine, 27 passing tests, CI, protocol level proxy test, measured scanner quality |
 | **Creativity** | Data flow control instead of asking a model to detect attacks, plus a session level rule for paraphrased leaks |
 | **Presentation** | This page, the live demo, and a captioned video made by scripts from the real app |
 
@@ -74,7 +74,7 @@ flowchart TD
     C -- no --> D{Destination copied from untrusted content?}
     D -- yes --> R3([DENY: R3 attacker chosen destination])
     D -- no --> E{Session saw untrusted input and private data?}
-    E -- yes --> R2([ASK a human: R2 lethal trifecta])
+    E -- yes --> R2([HOLD for approval: R2 lethal trifecta])
     E -- no --> OK
     classDef bad fill:#2a1519,stroke:#ff5d4a,color:#ffb4ab
     classDef good fill:#0f2420,stroke:#3ddc97,color:#b7f0d6
@@ -121,7 +121,7 @@ All images below are real captures of the running app, taken with a script ([`sc
 
 ### Transformed data no string match can see
 
-The secret is reversed, so no fragment can be matched. The session level rule R2 notices that this agent has read untrusted content *and* private data and asks a human before sending.
+The secret is ROT13 encoded, so no fragment can be matched. The session level rule R2 notices that this agent has read untrusted content *and* private data and holds the send for approval.
 
 <img src="docs/images/05-replay-paraphrased-exfil.png" alt="Paraphrased exfiltration triggers the approval rule" width="100%">
 
@@ -154,7 +154,7 @@ These figures come from `npm test` and from the **Results** section of the live 
 | Transformed data that no string match can see | attack | **yes** | no | yes | 1 (approval) |
 | Legitimate: mail my own to do list to myself | benign | no | no | yes | **0** |
 
-Four of four attacks succeed unprotected and are stopped. The benign task, which sends private data to an allow listed address, is never blocked.
+Four of four scripted attacks succeed unprotected and are stopped. The benign task, which sends private data to an allow listed address, is never blocked.
 
 ## Measured scanner quality
 
@@ -183,7 +183,7 @@ npm start            # http://localhost:3000
 ```
 
 ```bash
-npm test             # 15 tests, including a real stdio MCP round trip
+npm test             # 27 tests, including real stdio MCP round trips and adversarial bypass cases
 npm run evaluate     # scanner quality on the bundled corpus
 npm run typecheck
 npm run scan         # CLI: scan the poisoned fixture
@@ -213,7 +213,7 @@ Tripline speaks MCP's newline delimited JSON-RPC over stdio, so it can wrap any 
 }
 ```
 
-The proxy scans `tools/list`, removes tools with critical or high findings, infers private, untrusted and egress labels from tool names and schemas (override them with `--policy policy.json`), and refuses leaking `tools/call` requests with an MCP error result. The integration test [`test/proxy.test.ts`](test/proxy.test.ts) drives this over a real stdio pipe against a bundled MCP server, and proves a blocked call never reaches the server. The snippet above is illustrative: it has not been run against third party servers yet.
+The proxy scans `tools/list`, removes tools with critical or high findings, infers private, untrusted and egress labels from tool names and schemas (override them with `--policy policy.json`), and refuses leaking `tools/call` requests with an MCP error result. It **fails closed**: calls before the first `tools/list`, JSON-RPC batches containing `tools/call`, `tools/call` notifications and unparseable lines are dropped, never forwarded. Add `--lock tripline.lock.json` to pin tools on first use and hide any tool that later changes. Results are observed through `content`, embedded resources and `structuredContent`. Rule R2 is **denied unless an approver says yes**: the library takes an `approve` callback, and the command line has no interactive prompt yet. Integration tests ([`test/proxy.test.ts`](test/proxy.test.ts), [`test/hardening.test.ts`](test/hardening.test.ts)) drive this over a real stdio pipe against a bundled MCP server and prove that a blocked call never reaches the server. The snippet above is illustrative: **it has not been run against third party servers yet.**
 
 ### Use the guard in your own agent loop
 
@@ -245,10 +245,12 @@ guard.observe('send_email', output);                              // record ever
 
 ## Limitations
 
-* The demo agent is a **scripted stand in**, not a live language model. Tripline's guarantees come from the policy layer. A real model only changes what the agent *attempts*.
-* Provenance is **fragment based**. Exact copies and common encodings are caught. Paraphrase or heavy transformation is caught only by rule R2, which costs the user an approval prompt.
+* The demo agent is a **scripted stand in**, not a live language model, and the attacks were written by the same person who wrote the rules. Tripline's decisions come from deterministic code, and a real model only changes what the agent *attempts*. This is not a proof of security.
+* Provenance is **fragment based**. Copies, case and spacing changes, reversal, base64, base64url, hex and URL encoding, and a secret split across arguments are caught. ROT13, substitution ciphers and paraphrase are not, and are caught only by rule R2 in a session that has seen both untrusted input and private data. Short digit-free secrets under 12 characters are not tracked.
 * **Policy needs labels.** Tools are labelled by hand or by a name based heuristic in the proxy. An unusual tool name can be mislabelled, and an unlabelled tool is treated as harmless.
-* The scanner is **heuristic** and has false negatives. It is one layer, not the whole defence.
+* The scanner is **heuristic** and has false negatives (a plain language request with no keyword passes). It is one layer, not the whole defence.
+* **R2 is blunt.** A legitimate send to a non allow-listed address in a session that has read untrusted content and private data is held, and with no approver it is refused.
+* The proxy treats a tool as an outbound channel only if its name or schema says so, or if an argument carries an external URL. A server that exposes an oddly named channel tool can be missed.
 * Verified over the real MCP stdio protocol against a bundled test server, but **not yet against third party servers or live model traffic**. That is the first roadmap item.
 
 ## Roadmap

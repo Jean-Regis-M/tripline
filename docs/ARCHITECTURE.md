@@ -30,8 +30,8 @@ flowchart LR
 ## Guard algorithm
 
 1. `observe(tool, output)` runs after every call. Outputs of tools labelled private or untrusted are split into fragments (whole output, lines of 10 or more characters, and tokens that look like secrets) and stored.
-2. `check(tool, args)` runs before every call. Only tools flagged `egress` are judged. All string values in the arguments are searched for each stored fragment and for its base64, hex and URL encoded forms.
-3. The destination is compared against the allow list by exact match, e-mail domain, or subdomain. A look alike such as `student.test.evil.test` does not match.
+2. `check(tool, args)` runs before every call. A call is judged if its tool is flagged `egress` **or** any argument carries an external URL. All string values in the arguments are searched for each stored fragment, for its base64, base64url, hex (either case), URL encoded and reversed forms, and for a case, spacing and punctuation insensitive match across all arguments joined together.
+3. The destination is compared against the allow list by exact match, e-mail domain, or subdomain, and **every** recipient or host in the value must pass. Look alikes such as `student.test.evil.test`, `evil.test/a@student.test` and a list containing one bad address do not pass.
 4. Rules apply in order R1, R3, R2. In `monitor` mode a would be block is reported but allowed.
 
 ## Scanner rules
@@ -54,4 +54,4 @@ flowchart LR
 
 ## MCP proxy
 
-`src/proxy.ts` sits on the stdio pipe between a client and a server. It forwards every JSON-RPC line untouched except three cases: it rewrites `tools/list` results to drop poisoned tools, answers blocked `tools/call` requests itself with `isError: true`, and observes `tools/call` results for provenance tracking. Requests it blocks are never written to the server.
+`src/proxy.ts` sits on the stdio pipe between a client and a server and fails closed. It rewrites `tools/list` results to drop poisoned or drifted tools, answers blocked `tools/call` requests itself with `isError: true`, and observes results (text, resources, structured content) for provenance tracking. Requests it blocks are never written to the server. Calls before the first `tools/list`, batches containing `tools/call`, `tools/call` notifications and non JSON lines are dropped. An optional lockfile pins tools on first use. Rule R2 consults an optional `approve` callback and otherwise denies.
