@@ -8,6 +8,7 @@
 | Microsoft Edge | Headless browser for capture | Proprietary, not redistributed |
 | FFmpeg | Encoding the demo video (dev only) | LGPL or GPL, not redistributed |
 | Windows speech synthesis (Microsoft Zira) | Demo narration | Not redistributed |
+| Google Gemini API (gemini-3.1-flash-lite, gemini-3-flash-preview) | Live prompt injection experiment only (`scripts/live-agent.ts`), using the author's own API key supplied through an environment variable and never stored | Google API terms |
 | Claude Code (Anthropic) | AI assisted development, disclosed per hackathon rules | n/a |
 
 The runtime engine and the web app use no third party code and no external network requests.

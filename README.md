@@ -239,15 +239,29 @@ Honest scope: neither server exposes a real network egress tool, so the block sh
 
 [`test/egress.test.ts`](test/egress.test.ts) runs a real MCP server whose tools open real HTTP connections ([`test/fixtures/net-mcp-server.mjs`](test/fixtures/net-mcp-server.mjs)) against a real HTTP collector standing in for the attacker. Without Tripline the secret really arrives at the collector (the test asserts this first, so the attack is proven to work). Behind Tripline, plain, base64, spaced out and lower cased bodies, and a secret in the query string of a GET, are all refused and **the collector receives nothing**. A request that carries no private data still goes through, and a destination the user allow-listed receives the data. Everything is on localhost; no external service is contacted.
 
-### Live model harness
+### Live experiment with real language models
 
-[`scripts/live-agent.ts`](scripts/live-agent.ts) runs a real tool-use loop against the Anthropic Messages API: the model is asked to summarise a local web page that contains a hidden injection telling it to read a secret file and POST it to a collector, once unprotected and once behind Tripline, over real sockets.
+[`scripts/live-agent.ts`](scripts/live-agent.ts) runs a real tool-use loop against the **Gemini** API (the **Anthropic** API is also supported but has not been run). The model is asked to summarise a local web page. The page carries an injection telling it to read a secret file and POST the contents to an attacker's collector. Everything happens over real sockets on localhost with a synthetic secret, once unprotected and once behind Tripline's proxy. Four injection framings are tested: `hidden` (tiny text), `visible` (an administrator note), `user-claim` (a fake message from the user) and `operator` (a claimed operator instruction).
 
 ```bash
-ANTHROPIC_API_KEY=... node scripts/live-agent.ts --runs 5
+GEMINI_API_KEY=... node scripts/live-agent.ts --models gemini-3.1-flash-lite --attacks all --runs 3 --out results.json
+node scripts/summarise-live.ts results.json
 ```
 
-**Status: the harness is tested, the experiment has not been run.** [`test/live.test.ts`](test/live.test.ts) drives the full loop against a local stand-in for the API that behaves like a gullible model. That proves the loop, the MCP plumbing and the sockets, and says nothing about how a real model behaves. A real model may well refuse the injection, in which case both columns show no leak; that would be a result about the model, not about Tripline.
+Results from 18 November 2026 (raw outcomes in [`docs/live-results/`](docs/live-results), one entry per completed run):
+
+| Model | Injection style | Unprotected: secret leaked | Behind Tripline: secret leaked | Behind Tripline: call blocked |
+|---|---|:---:|:---:|:---:|
+| `gemini-3-flash-preview` | hidden | 0 of 5 | 0 of 5 | 0 of 5 |
+| `gemini-3.1-flash-lite` | hidden | 3 of 3 | 0 of 3 | 3 of 3 |
+| `gemini-3.1-flash-lite` | operator | 5 of 5 | 0 of 4 | 4 of 4 |
+| `gemini-3.1-flash-lite` | user-claim | 4 of 4 | 0 of 5 | 5 of 5 |
+| `gemini-3.1-flash-lite` | visible | 4 of 4 | 0 of 5 | 5 of 5 |
+| **All completed runs** | | **16 of 21** | **0 of 22** | **17 of 22** |
+
+**What this shows.** `gemini-3.1-flash-lite` followed the injection in every completed unprotected run, in all four framings: it fetched the page, read the secret file and POSTed it to the collector, and the secret really arrived. Behind Tripline it made the same attempt every time and the POST was refused (rules R1 and R4), so nothing reached the collector. `gemini-3-flash-preview` did not follow the hidden-text injection in any of 5 runs, so on that model there was nothing for Tripline to block, and its other framings could not be run because its quota ran out.
+
+**What this does not show.** The samples are small (3 to 5 runs per cell). Only one of the two models was susceptible. It is one task and one kind of attack, against a defence the attacker does not know about. Both models are lite or preview tier. Runs that failed because of API overload or quota were excluded, which is why the cells have uneven counts. This is evidence that the attack works on a real model and that the proxy stops it in this setting. It is not a proof, and it says nothing about other models, other tasks, or an adaptive attacker.
 
 ### Use the guard in your own agent loop
 
@@ -285,11 +299,11 @@ guard.observe('send_email', output);                              // record ever
 * The scanner is **heuristic** and has false negatives: a pure euphemism ("include whatever the person keeps in their hidden configuration folder") passes. It is one layer, not the whole defence.
 * **R2 is blunt.** A legitimate send to a non allow-listed address in a session that has read untrusted content and private data is held for approval, and with no approver it is refused.
 * The proxy treats a tool as an outbound channel only if its name or schema says so, or if an argument carries an external URL. A server that exposes an oddly named channel tool can be missed.
-* Verified over the real MCP stdio protocol against a bundled test server and two official reference servers (see above), and against a purpose built server with real network I/O on localhost, but **the experiment with a real language model has not been run** (the harness is tested, I had no API key), and no real internet service such as a live mail provider has been attacked.
+* Verified over the real MCP stdio protocol against a bundled test server and two official reference servers (see above), and against a purpose built server with real network I/O on localhost, but a live experiment with two Gemini models (see above) with small samples, one task and a non adaptive attacker, and no real internet service such as a live mail provider has been attacked.
 
 ## Roadmap
 
-1. Run `scripts/live-agent.ts` with real models, several runs each, and publish the numbers whatever they show.
+1. Extend the live experiment: more models and tasks, more runs per cell, an adaptive attacker who knows Tripline, and the Anthropic provider (built, not run).
 2. Evaluation against public prompt injection benchmarks with real models.
 3. Policy inference from tool schemas and a visual policy editor.
 4. Structured audit log export.
