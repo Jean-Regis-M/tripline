@@ -11,6 +11,7 @@ Open a GitHub issue titled "Security" with a minimal reproduction. For anything 
 ## Threat model
 
 * **In scope:** hidden instructions in tool metadata, prompt injection arriving through tool output, exfiltration through outbound tools, silent changes to approved tools, simple encoding evasion (base64, hex, URL encoding).
+* **Content detection (R4, R5)** covers the secret kinds listed in `src/detect.ts`. A credential in an unknown format, from a source with no provenance label, is not recognised.
 * **Known evasions:** spelling data out in other words, keyed ciphers, compression, paraphrase, and a scanner payload that is a pure euphemism. These are covered only by rule R2 or not at all, and are asserted as known limitations in the tests.
 * **Out of scope:** a compromised host, a malicious allow listed destination, covert channels such as timing, and semantic leaks where a model re-expresses private information in new words with no copied fragment (partially mitigated by rule R2).
 

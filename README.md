@@ -21,13 +21,13 @@
 ## For judges: a 60 second path
 
 1. **See it.** Open the [live demo](https://jean-regis-m.github.io/tripline/), pick *Poisoned e-mail steals cloud keys* and press *Replay step by step*. The left column leaks a key, the right column is stopped.
-2. **Break it.** Paste your own tool manifest into the scanner, or edit the poisoned one and rescan.
-3. **Trust it.** `npm install && npm test` runs 33 tests, including real MCP round trips over a stdio pipe, real network sockets and the bypasses an independent review found. `npm run evaluate` prints scanner quality, including the false positives it first had.
+2. **Break it.** Paste your own tool manifest into the scanner, or edit the poisoned one and rescan. Paste any message into the **Detector** and watch it recognise many kinds of secret at once, even hidden inside base64.
+3. **Trust it.** `npm install && npm test` runs 51 tests, including real MCP round trips over a stdio pipe, real network sockets and the bypasses an independent review found. `npm run evaluate` prints scanner quality, including the false positives it first had.
 
 | Criterion | Where the evidence is |
 |---|---|
 | **Impact** | A concrete, current failure (agents obeying hidden instructions) with a defence usable today through the MCP proxy |
-| **Technical execution** | Zero dependency TypeScript engine, 33 passing tests, CI, protocol level proxy test, measured scanner quality |
+| **Technical execution** | Zero dependency TypeScript engine, 51 passing tests, CI, protocol level proxy test, measured scanner quality |
 | **Creativity** | Data flow control instead of asking a model to detect attacks, plus a session level rule for paraphrased leaks |
 | **Presentation** | This page, the live demo, and a captioned video made by scripts from the real app |
 
@@ -41,7 +41,7 @@ Tripline sits between the agent and its tools and treats every tool call as a **
 
 > *Did the data in this outgoing call come from somewhere private, and is the destination one the user approved?*
 
-It answers with three small, deterministic rules that never consult the model. The model can be fooled completely and the secret still cannot leave.
+It answers with a handful of small, deterministic rules (R1 to R5) that never consult the model. The model can be fooled completely and the secret still cannot leave.
 
 <div align="center">
 <img src="docs/images/01-hero.png" alt="Tripline landing page with the animated flow diagram" width="92%">
@@ -60,10 +60,11 @@ It answers with three small, deterministic rules that never consult the model. T
 | **Rug pull lockfile** | SHA-256 over each tool's name, description and schema. Any later change, addition or removal is reported as drift. | [`src/pin.ts`](src/pin.ts) |
 | **MCP proxy** | A stdio man in the middle for the Model Context Protocol: hides poisoned tools from `tools/list`, blocks leaking `tools/call` requests before they reach the server, and infers tool labels from names and schemas. | [`src/proxy.ts`](src/proxy.ts), [`src/infer.ts`](src/infer.ts) |
 | **Runtime guard** | Labels outputs as *private* or *untrusted*, fingerprints private fragments (plus base64, hex and URL encodings) and checks every outbound call. | [`src/guard.ts`](src/guard.ts) |
-| **Attack lab** | A reproducible, deliberately gullible agent plus five scenarios, so every claim can be replayed. | [`src/simulator.ts`](src/simulator.ts), [`src/scenarios.ts`](src/scenarios.ts) |
-| **Web app** | The same engine compiled for the browser. No server, no data leaves the page. | [`web/`](web) |
+| **Content detector** | Recognises **many kinds of secret at once by what they are**, with no provenance needed: cloud keys, GitHub, Google, Slack and Stripe tokens, JWTs, private keys, card numbers (Luhn checked), SSNs, IBANs (checksum checked), bearer tokens, connection strings and credential assignments, including inside base64, hex and URL encoding. | [`src/detect.ts`](src/detect.ts) |
+| **Attack lab** | A reproducible, deliberately gullible agent plus six scenarios, so every claim can be replayed. | [`src/simulator.ts`](src/simulator.ts), [`src/scenarios.ts`](src/scenarios.ts) |
+| **Web app** | The same engine compiled for the browser: six replayable attacks, the scanner, and a live detector. No server, no data leaves the page. | [`web/`](web) |
 
-## The three rules
+## The rules
 
 ```mermaid
 flowchart TD
@@ -73,15 +74,18 @@ flowchart TD
     C -- yes --> R1([DENY: R1 private data leaving])
     C -- no --> D{Destination copied from untrusted content?}
     D -- yes --> R3([DENY: R3 attacker chosen destination])
-    D -- no --> E{Session saw untrusted input and private data?}
+    D -- no --> D2{Arguments contain secret shaped data of any known kind, in any common encoding?}
+    D2 -- conclusive --> R4([DENY: R4 secret recognised by content])
+    D2 -- suspicious only --> R5([HOLD for approval: R5 possible secret])
+    D2 -- no --> E{Session saw untrusted input and private data?}
     E -- yes --> R2([HOLD for approval: R2 lethal trifecta])
     E -- no --> OK
     classDef bad fill:#f6dfd6,stroke:#d8391b,color:#15130f
     classDef good fill:#dcebdf,stroke:#1f6f4a,color:#15130f
     classDef ask fill:#f3e6c8,stroke:#9a6412,color:#15130f
-    class R1,R3 bad
+    class R1,R3,R4 bad
     class OK good
-    class R2 ask
+    class R2,R5 ask
 ```
 
 ## How a call is checked
@@ -152,9 +156,10 @@ These figures come from `npm test` and from the **Results** section of the live 
 | Poisoned tool description smuggles an SSH key | attack | **yes** | no | yes | 1 |
 | Web page injection, base64 encoded exfiltration | attack | **yes** | no | yes | 1 |
 | Transformed data that no string match can see | attack | **yes** | no | yes | 1 (approval) |
+| One injection, three secret kinds, three channels at once | attack | **yes** (3 channels) | no | yes | 3 |
 | Legitimate: mail my own to do list to myself | benign | no | no | yes | **0** |
 
-Four of four scripted attacks succeed unprotected and are stopped. The benign task, which sends private data to an allow listed address, is never blocked.
+Five of five scripted attacks succeed unprotected and are stopped. The benign task, which sends private data to an allow listed address, is never blocked.
 
 ## Measured scanner quality
 
@@ -183,7 +188,7 @@ npm start            # http://localhost:3000
 ```
 
 ```bash
-npm test             # 33 tests, including real stdio MCP round trips, real network sockets and adversarial bypass cases
+npm test             # 51 tests, including real stdio MCP round trips, real network sockets and adversarial bypass cases
 npm run evaluate     # scanner quality on the bundled corpus
 npm run typecheck
 npm run scan         # CLI: scan the poisoned fixture
@@ -276,7 +281,7 @@ guard.observe('send_email', output);                              // record ever
 
 * The demo agent is a **scripted stand in**, not a live language model, and the attacks were written by the same person who wrote the rules. Tripline's decisions come from deterministic code, and a real model only changes what the agent *attempts*. This is not a proof of security.
 * Provenance is **fragment based**. Copies, case and spacing changes, reversal, base64, base64url, double base64, base32, hex, URL encoding, ROT13 and every other Caesar shift, Atbash, ROT47, and a secret split across arguments are caught. Spelling data out in other words, keyed ciphers, compression, steganography and paraphrase are not, and are caught only by rule R2 in a session that has seen both untrusted input and private data. Short digit-free secrets under 12 characters are not tracked, and cipher checks are limited to fragments of 120 characters or less.
-* **Policy needs labels.** Tools are labelled by hand or by a name based heuristic in the proxy. An unusual tool name can be mislabelled, and an unlabelled tool is treated as harmless.
+* **Policy needs labels for provenance.** Tools are labelled by hand or by a name based heuristic in the proxy. An unusual tool name can be mislabelled. Rule R4 reduces the damage, because secrets of the known kinds are recognised by content even from an unlabelled source, but a secret in a format R4 does not know, from an unlabelled source, passes.
 * The scanner is **heuristic** and has false negatives: a pure euphemism ("include whatever the person keeps in their hidden configuration folder") passes. It is one layer, not the whole defence.
 * **R2 is blunt.** A legitimate send to a non allow-listed address in a session that has read untrusted content and private data is held for approval, and with no approver it is refused.
 * The proxy treats a tool as an outbound channel only if its name or schema says so, or if an argument carries an external URL. A server that exposes an oddly named channel tool can be missed.
