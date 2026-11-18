@@ -302,9 +302,9 @@ docs/       architecture notes and the images used here
 
 ## Demo video
 
-A narrated, captioned 2:31 walkthrough of the running app: **[watch on YouTube](https://youtu.be/yAVTw-ZKBIo)**. It is a real capture of this app (scripted by [`scripts/makevideo.mjs`](scripts/makevideo.mjs)) with a synthetic voice, a scripted demo agent and synthetic secrets.
+A narrated, captioned 2:31 walkthrough of the running app: **[watch on YouTube](https://youtu.be/jZhNYQrwFf8)**. It is a real capture of this app (scripted by [`scripts/makevideo.mjs`](scripts/makevideo.mjs)) with a synthetic voice, a scripted demo agent and synthetic secrets.
 
-[![Tripline demo video](docs/images/devpost-cover.png)](https://youtu.be/yAVTw-ZKBIo)
+[![Tripline demo video](docs/images/devpost-cover.png)](https://youtu.be/jZhNYQrwFf8)
 
 ## Honest credits and disclosure
 
