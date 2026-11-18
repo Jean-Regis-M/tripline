@@ -1,0 +1,23 @@
+{
+  "name": "tripline",
+  "version": "0.1.0",
+  "description": "Information-flow firewall and manifest scanner for AI agent tool calls (MCP).",
+  "type": "module",
+  "license": "MIT",
+  "engines": {
+    "node": ">=22.18"
+  },
+  "scripts": {
+    "start": "node src/server.ts",
+    "test": "node --test test/",
+    "typecheck": "tsc --noEmit",
+    "build": "tsc -p tsconfig.web.json",
+    "scan": "node src/cli.ts scan fixtures/poisoned.manifest.json",
+    "evaluate": "node scripts/evaluate.ts"
+  },
+  "devDependencies": {
+    "@types/node": "^22.0.0",
+    "playwright-core": "^1.65.1",
+    "typescript": "^7.0.2"
+  }
+}
