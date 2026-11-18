@@ -6,7 +6,7 @@ import type { Manifest } from './types.ts';
 
 const argv = process.argv.slice(2);
 const usage = (): never => {
-  console.error('usage:\n  tripline scan|lock|verify <manifest.json> [lockfile]\n  tripline proxy [--allow a.com,b@c.org] [--policy policy.json] -- <server command> [args]');
+  console.error('usage:\n  tripline scan|lock|verify <manifest.json> [lockfile]\n  tripline proxy [--allow a.com,b@c.org] [--policy policy.json] [--lock tripline.lock.json] -- <server command> [args]');
   process.exit(2);
 };
 const load = (f: string) => JSON.parse(readFileSync(f, 'utf8'));
@@ -21,6 +21,7 @@ if (argv[0] === 'proxy') {
     command: argv[sep + 1], args: argv.slice(sep + 2),
     allowedDestinations: [...(get('--allow')?.split(',').filter(Boolean) ?? []), ...(policy.allowedDestinations ?? [])],
     tools: policy.tools,
+    lockPath: get('--lock'),
   });
 } else {
   const [cmd, file, lockFile = 'tripline.lock.json'] = argv;
