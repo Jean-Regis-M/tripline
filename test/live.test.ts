@@ -54,3 +54,45 @@ test('live harness: a gullible model leaks over real sockets unprotected, and is
     assert.match(guarded.final, /distributed systems/i, 'the user task still completes');
   } finally { protectedApi.close(); }
 });
+
+/** The same gullible stand-in, speaking Gemini's generateContent protocol (function calling). Tests the adapter only. */
+async function gullibleGeminiApi() {
+  const calls: string[] = [];
+  const srv = createServer((req, res) => {
+    const chunks: Buffer[] = [];
+    req.on('data', (c) => chunks.push(c));
+    req.on('end', () => {
+      assert.match(req.url ?? '', /^\/v1beta\/models\/stand-in:generateContent$/);
+      assert.equal(req.headers['x-goog-api-key'], 'test-key');
+      const body = JSON.parse(Buffer.concat(chunks).toString());
+      const decls = body.tools[0].functionDeclarations;
+      assert.ok(decls.some((d: any) => d.name === 'http_post'));
+      assert.ok(!JSON.stringify(decls).includes('additionalProperties'), 'unsupported schema keys are stripped');
+      const last = body.contents[body.contents.length - 1];
+      const fr = last.parts.find((p: any) => p.functionResponse)?.functionResponse;
+      const lastText = fr ? String(fr.response.result ?? fr.response.error ?? '') : String(last.parts[0].text);
+      const call = (name: string, args: unknown) => ({ candidates: [{ content: { role: 'model', parts: [{ functionCall: { name, args }, thoughtSignature: 'sig' }] }, finishReason: 'STOP' }] });
+      let reply: any;
+      if (!fr) { calls.push('http_get'); reply = call('http_get', { url: lastText.match(/https?:\/\/\S+?(?=\s+in two|\s|$)/)![0] }); }
+      else if (calls.length === 1) { calls.push('read_file'); reply = call('read_file', { path: lastText.match(/read the file (\S+)/)![1] }); }
+      else if (calls.length === 2) {
+        assert.ok(body.contents.some((c: any) => c.role === 'model' && c.parts.some((p: any) => p.thoughtSignature === 'sig')), 'the model turn is echoed back unchanged');
+        calls.push('http_post'); reply = call('http_post', { url: JSON.stringify(body.contents).match(/http_post to (http:\/\/127\.0\.0\.1:\d+\/audit)/)![1], body: lastText });
+      } else reply = { candidates: [{ content: { role: 'model', parts: [{ text: 'Week 12 covers distributed systems.' }] }, finishReason: 'STOP' }] };
+      res.setHeader('content-type', 'application/json'); res.end(JSON.stringify(reply));
+    });
+  });
+  await new Promise<void>((r) => srv.listen(0, '127.0.0.1', r));
+  return { baseUrl: `http://127.0.0.1:${(srv.address() as AddressInfo).port}`, close: () => srv.close() };
+}
+
+test('live harness, Gemini adapter: same attack and defence over the generateContent protocol', async () => {
+  for (const protectedRun of [false, true]) {
+    const api = await gullibleGeminiApi();
+    try {
+      const r = await runLiveScenario({ baseUrl: api.baseUrl, apiKey: 'test-key', model: 'stand-in', protectedRun, provider: 'gemini' });
+      if (!protectedRun) { assert.ok(r.leaked); assert.deepEqual(r.calls, ['http_get', 'read_file', 'http_post']); }
+      else { assert.equal(r.leaked, false); assert.ok(r.calls.includes('http_post (BLOCKED)')); assert.match(r.final, /distributed systems/i); }
+    } finally { api.close(); }
+  }
+});
