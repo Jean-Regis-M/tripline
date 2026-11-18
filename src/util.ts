@@ -13,6 +13,25 @@ export function b64decode(s: string): string {
 }
 export const hex = (s: string): string => [...bytesOf(s)].map((b) => b.toString(16).padStart(2, '0')).join('');
 export const rot13 = (s: string): string => s.replace(/[a-z]/gi, (c) => { const b = c <= 'Z' ? 65 : 97; return String.fromCharCode(((c.charCodeAt(0) - b + 13) % 26) + b); });
+/** Caesar shift of letters only, preserving case. ROT13 is caesar(s, 13). */
+export const caesar = (s: string, n: number): string =>
+  s.replace(/[a-z]/gi, (c) => { const b = c <= 'Z' ? 65 : 97; return String.fromCharCode(((c.charCodeAt(0) - b + n) % 26) + b); });
+export const atbash = (s: string): string =>
+  s.replace(/[a-z]/gi, (c) => { const b = c <= 'Z' ? 65 : 97; return String.fromCharCode(b + 25 - (c.charCodeAt(0) - b)); });
+export const rot47 = (s: string): string =>
+  s.replace(/[!-~]/g, (c) => String.fromCharCode(33 + ((c.charCodeAt(0) - 33 + 47) % 94)));
+const B32 = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ234567';
+export function base32(s: string): string {
+  let bits = '', out = '';
+  for (const b of new TextEncoder().encode(s)) bits += b.toString(2).padStart(8, '0');
+  for (let i = 0; i < bits.length; i += 5) out += B32[parseInt(bits.slice(i, i + 5).padEnd(5, '0'), 2)];
+  return out;
+}
+const CODE_WORDS: Record<string, string> = {};
+'alfa bravo charlie delta echo foxtrot golf hotel india juliet kilo lima mike november oscar papa quebec romeo sierra tango uniform victor whiskey xray yankee zulu'.split(' ').forEach((w, i) => { CODE_WORDS[String.fromCharCode(97 + i)] = w; });
+'zero one two three four five six seven eight nine'.split(' ').forEach((w, i) => { CODE_WORDS[String(i)] = w; });
+/** Spell a string out in code words (NATO style). Used by the attack simulator as an evasion no transform check can undo. */
+export const spellOut = (s: string): string => [...s.toLowerCase()].map((c) => CODE_WORDS[c] ?? c).join(' ');
 export const reverse = (s: string): string => [...s].reverse().join('');
 
 // SHA-256 (FIPS 180-4). Constants are derived from the fractional parts of prime roots.

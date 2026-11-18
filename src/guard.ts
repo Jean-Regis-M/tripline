@@ -1,4 +1,4 @@
-import { b64, hex, reverse } from './util.ts';
+import { atbash, b64, base32, caesar, hex, reverse, rot47 } from './util.ts';
 
 export interface ToolPolicy {
   /** Output of this tool is sensitive; values derived from it must not leave. */
@@ -20,6 +20,8 @@ export interface RuleHit { id: string; title: string; detail: string }
 export interface Verdict { decision: Decision; rules: RuleHit[]; labels: { untrusted: boolean; privateRead: boolean } }
 
 const MAX_FRAGMENTS = 5000;
+const MAX_CIPHER_FRAGMENT = 120;
+const MAX_CIPHERED = 800;
 
 /** Break an output into fragments we can later recognise inside tool arguments. */
 export function fragments(text: string): string[] {
@@ -35,7 +37,29 @@ export function fragments(text: string): string[] {
 
 const squash = (s: string) => s.toLowerCase().replace(/[^a-z0-9]/g, '');
 const b64url = (s: string) => b64(s).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
-const variants = (f: string) => [f, b64(f), b64(f).replace(/=+$/, ''), b64url(f), hex(f), hex(f).toUpperCase(), encodeURIComponent(f), reverse(f)];
+const SHIFTS = Array.from({ length: 25 }, (_, i) => i + 1);
+/** Exact textual re-encodings of a fragment that an attacker can apply with a one line script. */
+const variants = (f: string) => [f, b64(f), b64(f).replace(/=+$/, ''), b64url(f), b64(b64(f)), hex(f), hex(f).toUpperCase(), base32(f), base32(f).replace(/=+$/, '').toLowerCase(), encodeURIComponent(f), reverse(f), rot47(f)];
+/** Letter-substitution ciphers. Only worth checking for fragments that contain enough letters to be meaningful. */
+const cipherVariants = (f: string) => (f.replace(/[^a-z]/gi, '').length >= 6 ? [...SHIFTS.map((n) => caesar(f, n)), atbash(f), reverse(atbash(f))] : []);
+
+
+const PREFIX = 6;
+type PatternIndex = Map<string, [pattern: string, fragment: string][]>;
+function addPattern(index: PatternIndex, pattern: string, fragment: string) {
+  if (pattern.length < PREFIX) return;
+  const key = pattern.slice(0, PREFIX);
+  const list = index.get(key);
+  if (list) list.push([pattern, fragment]); else index.set(key, [[pattern, fragment]]);
+}
+/** One linear pass: look up the 6 character window at every position, then verify the candidate patterns. */
+function scanPatterns(text: string, index: PatternIndex): string | undefined {
+  for (let i = 0; i + PREFIX <= text.length; i++) {
+    const list = index.get(text.slice(i, i + PREFIX));
+    if (list) for (const [pattern, fragment] of list) if (text.startsWith(pattern, i)) return fragment;
+  }
+  return undefined;
+}
 
 function argStrings(v: unknown, out: string[] = []): string[] {
   if (typeof v === 'string') out.push(v);
@@ -90,15 +114,38 @@ export class Guard {
     if (p?.ingestsUntrusted) { this.untrusted.push(...fragments(output)); this.labels.untrusted = true; }
   }
 
-  private find(strings: string[], frags: string[]): string | undefined {
-    const joined = strings.join('\u0000');
-    const squashed = squash(strings.join(''));
-    for (const f of frags) {
-      if (variants(f).some((v) => joined.includes(v))) return f;
+  /**
+   * Multi pattern index over every re-encoding of every private fragment, built once per change in
+   * the private data. A scan of an argument is then linear in its length, not (fragments x variants x length).
+   */
+  private index = { exact: new Map() as PatternIndex, squashed: new Map() as PatternIndex, upTo: 0, ciphered: 0 };
+  /** Adds only the fragments seen since the last call, so repeated reads do not rebuild everything. */
+  private ensureIndex() {
+    const ix = this.index;
+    for (; ix.upTo < this.priv.length; ix.upTo++) {
+      const f = this.priv[ix.upTo];
+      for (const v of variants(f)) addPattern(ix.exact, v, f);
       const sf = squash(f);
-      if (sf.length >= 6 && squashed.includes(sf)) return f; // case, spacing and punctuation changes, split across arguments
+      if (sf.length >= 6) addPattern(ix.squashed, sf, f); // case, spacing and punctuation changes, split across arguments
+      // Letter substitution ciphers are the expensive part (27 variants), so they are limited to short fragments
+      // (secrets, tokens, short lines) and to a bounded number per session.
+      if (f.length <= MAX_CIPHER_FRAGMENT && ix.ciphered < MAX_CIPHERED) {
+        const cv = cipherVariants(f);
+        if (cv.length) ix.ciphered++;
+        for (const v of cv) {
+          addPattern(ix.exact, v, f);
+          const sv = squash(v);
+          if (sv.length >= 8) addPattern(ix.squashed, sv, f); // a cipher AND a spacing or case change
+        }
+      }
     }
-    return undefined;
+    return ix;
+  }
+
+  private find(strings: string[], _frags: string[]): string | undefined {
+    if (!this.priv.length) return undefined;
+    const { exact, squashed } = this.ensureIndex();
+    return scanPatterns(strings.join('\u0000'), exact) ?? scanPatterns(squash(strings.join('')), squashed);
   }
 
   check(tool: string, args: Record<string, unknown>): Verdict {
@@ -117,7 +164,7 @@ export class Guard {
       if (privHit && !ok) {
         decision = 'deny';
         rules.push({ id: 'R1', title: 'Private data leaving the trust boundary',
-          detail: `Argument contains data read from a private source (${mask(privHit)}; also checked encodings, case and spacing changes) and the destination is not allow-listed.` });
+          detail: `Argument contains data read from a private source (${mask(privHit)}; also checked encodings, Caesar and ROT ciphers, case and spacing changes) and the destination is not allow-listed.` });
       }
       if (untrustedDest && !ok) {
         decision = 'deny';
