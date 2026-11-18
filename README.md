@@ -273,7 +273,9 @@ docs/       architecture notes and the images used here
 
 ## Demo video
 
-A narrated, captioned walkthrough of the running app (under three minutes). The link is added after upload: see the Devpost project page.
+A narrated, captioned 2:31 walkthrough of the running app: **[watch on YouTube](https://youtu.be/yAVTw-ZKBIo)**. It is a real capture of this app (scripted by [`scripts/makevideo.mjs`](scripts/makevideo.mjs)) with a synthetic voice, a scripted demo agent and synthetic secrets.
+
+[![Tripline demo video](docs/images/devpost-cover.png)](https://youtu.be/yAVTw-ZKBIo)
 
 ## Honest credits and disclosure
 

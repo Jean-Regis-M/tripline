@@ -18,7 +18,7 @@ if (total > 175) throw new Error(`video would be ${total}s, over the safe limit`
 rmSync(join(W, 'rec'), { recursive: true, force: true }); mkdirSync(join(W, 'rec'), { recursive: true });
 const browser = await chromium.launch({ executablePath: 'C:/Program Files (x86)/Microsoft/Edge/Application/msedge.exe', headless: true });
 const created = Date.now();
-const ctx = await browser.newContext({ viewport: { width: 1920, height: 1080 }, colorScheme: 'dark', recordVideo: { dir: join(W, 'rec'), size: { width: 1920, height: 1080 } } });
+const ctx = await browser.newContext({ viewport: { width: 1920, height: 1080 }, colorScheme: 'light', recordVideo: { dir: join(W, 'rec'), size: { width: 1920, height: 1080 } } });
 const page = await ctx.newPage();
 await page.addInitScript(() => {
   addEventListener('DOMContentLoaded', () => {
