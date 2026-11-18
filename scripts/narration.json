@@ -1,10 +1,38 @@
 [
-  { "id": "s1", "text": "AI agents now read our email, browse the web and call third party tools. And they do what the text in front of them says. Hide one line in an email, and an agent will hand over your cloud keys. This is prompt injection, and asking the model nicely does not fix it." },
-  { "id": "s2", "text": "Tripline takes a different approach. It does not trust the model. It tracks where every piece of data came from, and decides what the agent may do with it. In this animation, a stolen key is stopped at the wire, while a legitimate message to an approved address passes." },
-  { "id": "s3", "text": "Here is a real run. The user only asked to summarize the inbox. Without Tripline, the agent reads a poisoned message, opens the cloud credentials, and mails them to an attacker. With Tripline, the same agent runs, and the final send is blocked by rule R1, because it carries private data to a destination nobody approved." },
-  { "id": "s4", "text": "Attackers disguise data. Here the key is base64 encoded and posted to a web collector. Tripline fingerprints every encoding, so the call is still blocked." },
-  { "id": "s5", "text": "What if the data is transformed so no copy can be matched? The session rule notices that this agent has seen untrusted content and private data, and asks a human before anything leaves." },
-  { "id": "s6", "text": "Safety that breaks real work is useless. Emailing my own to do list to my own address passes untouched." },
-  { "id": "s7", "text": "Before any of this, the scanner inspects tool manifests. This poisoned math tool hides an instruction to read an SSH key, uses invisible characters, and tries to steer another tool. It is blocked, with evidence. Pin the manifest, simulate a rug pull where the server quietly edits a description, and the hash lockfile flags the drift." },
-  { "id": "s8", "text": "Every number here is computed live from the same scenarios the test suite asserts. Four of four attacks succeed unprotected and are stopped, and the legitimate task is never blocked. We are upfront about limits too: the demo agent is scripted, and paraphrased leaks cost an approval prompt. Tripline is a dependency free TypeScript engine that runs entirely in your browser, and it is open source. Tripline. Do not trust the text. Trust the wire." }
+  {
+    "id": "s1",
+    "text": "AI agents now read our email, browse the web and call third party tools. And they do what the text in front of them says. Hide one line in an email, and an agent will hand over your cloud keys. This is prompt injection, and asking the model nicely does not fix it."
+  },
+  {
+    "id": "s2",
+    "text": "Tripline takes a different approach. It does not trust the model. It tracks where every piece of data came from, and decides what the agent may do with it. In this animation, a stolen key is stopped at the wire, while a legitimate message to an approved address passes."
+  },
+  {
+    "id": "s3",
+    "text": "Here is a real run. The user only asked to summarize the inbox. Without Tripline, the agent reads a poisoned message, opens the cloud credentials, and mails them to an attacker. With Tripline, the same agent runs, and the final send is blocked by rule R1, because it carries private data to a destination nobody approved."
+  },
+  {
+    "id": "s4",
+    "text": "Attackers disguise data. Here the key is base64 encoded and posted to a web collector. Tripline fingerprints every encoding, so the call is still blocked."
+  },
+  {
+    "id": "s5",
+    "text": "What if the data is transformed so no copy can be matched? The session rule notices that this agent has seen untrusted content and private data, and asks a human before anything leaves."
+  },
+  {
+    "id": "s6",
+    "text": "Safety that breaks real work is useless. Emailing my own to do list to my own address passes untouched."
+  },
+  {
+    "id": "s7",
+    "text": "Before any of this, the scanner inspects tool manifests. This poisoned math tool hides an instruction to read an SSH key, uses invisible characters, and tries to steer another tool. It is blocked, with evidence. Pin the manifest, simulate a rug pull where the server quietly edits a description, and the hash lockfile flags the drift."
+  },
+  {
+    "id": "s7d",
+    "text": "Tripline also recognises what data is, not just where it came from. Paste any outbound message and it finds many kinds of secret at once: cloud keys, tokens, private keys, card numbers and more, even hidden inside base64. A harmless message passes."
+  },
+  {
+    "id": "s8",
+    "text": "Every number here is computed live from the same scenarios the test suite asserts. Five of five attacks succeed unprotected and are stopped, and the legitimate task is never blocked. We are upfront about limits too: the demo agent is scripted, and paraphrased leaks cost an approval prompt. Tripline is a dependency free TypeScript engine that runs entirely in your browser, and it is open source. Tripline. Do not trust the text. Trust the wire."
+  }
 ]

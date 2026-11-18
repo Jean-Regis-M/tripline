@@ -52,9 +52,12 @@ h1 em{font-style:italic;color:var(--trip)}
 .badge{font:700 11px var(--mono);letter-spacing:.08em;white-space:nowrap}.badge.deny,.badge.leak{color:var(--trip)}.badge.ask{color:var(--amber)}.badge.allow{color:var(--safe)}
 .note,.muted{color:var(--muted);font-size:13.5px}.note{margin-top:16px}
 .lab{display:block;font:500 12px var(--mono);letter-spacing:.07em;text-transform:uppercase;color:var(--muted);margin-bottom:8px}
+.field{width:100%;font:13px var(--mono);background:var(--panel);color:var(--ink);border:1px solid var(--ink);padding:9px 12px}
+#payload{min-height:260px}
 textarea{width:100%;min-height:380px;font:12px/1.55 var(--mono);background:var(--panel);color:var(--ink);border:1px solid var(--ink);padding:12px;resize:vertical}
 .out{min-height:120px}.verdict{display:inline-block;padding:6px 14px;font:700 12.5px var(--mono);letter-spacing:.08em;text-transform:uppercase;margin-bottom:14px;border:2px solid currentColor;transform:rotate(-1.5deg)}
 .verdict.block{color:var(--trip)}.verdict.review{color:var(--amber)}.verdict.pass{color:var(--safe)}
+.kind{display:flex;justify-content:space-between;gap:12px;border-top:1px solid var(--rule);padding:8px 0;font:13px var(--mono)}.kind b{color:var(--trip)}.kind span{color:var(--muted)}
 .find{border-top:1px solid var(--rule);padding:10px 0;font-size:13.5px}
 .sev{font:700 11px var(--mono);text-transform:uppercase;letter-spacing:.06em;margin-right:8px}.sev.critical,.sev.high{color:var(--trip)}.sev.medium{color:var(--amber)}.sev.low{color:var(--muted)}
 .tablewrap{overflow-x:auto;border-top:1px solid var(--ink);border-bottom:1px solid var(--ink)}
