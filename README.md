@@ -8,9 +8,9 @@
 *Deterministic data flow rules between your agent and its tools. There is no model in the loop to fool.*
 
 [![CI](https://github.com/Jean-Regis-M/tripline/actions/workflows/ci.yml/badge.svg)](https://github.com/Jean-Regis-M/tripline/actions/workflows/ci.yml)
-![License](https://img.shields.io/badge/license-MIT-3ddc97)
-![Runtime dependencies](https://img.shields.io/badge/runtime%20dependencies-0-7cc4ff)
-![Track](https://img.shields.io/badge/GenHacks%202026-AI%2C%20Agentic%20Systems%2C%20Cybersecurity-ff5d4a)
+![License](https://img.shields.io/badge/license-MIT-1f6f4a)
+![Runtime dependencies](https://img.shields.io/badge/runtime%20dependencies-0-15130f)
+![Track](https://img.shields.io/badge/GenHacks%202026-AI%2C%20Agentic%20Systems%2C%20Cybersecurity-d8391b)
 
 **[Live demo](https://jean-regis-m.github.io/tripline/)** &nbsp;|&nbsp; **[Demo video](#demo-video)** &nbsp;|&nbsp; **[Architecture](docs/ARCHITECTURE.md)** &nbsp;|&nbsp; **[Security notes](SECURITY.md)**
 
@@ -76,9 +76,9 @@ flowchart TD
     D -- no --> E{Session saw untrusted input and private data?}
     E -- yes --> R2([HOLD for approval: R2 lethal trifecta])
     E -- no --> OK
-    classDef bad fill:#2a1519,stroke:#ff5d4a,color:#ffb4ab
-    classDef good fill:#0f2420,stroke:#3ddc97,color:#b7f0d6
-    classDef ask fill:#2a2113,stroke:#f5b04c,color:#fbdca0
+    classDef bad fill:#f6dfd6,stroke:#d8391b,color:#15130f
+    classDef good fill:#dcebdf,stroke:#1f6f4a,color:#15130f
+    classDef ask fill:#f3e6c8,stroke:#9a6412,color:#15130f
     class R1,R3 bad
     class OK good
     class R2 ask
