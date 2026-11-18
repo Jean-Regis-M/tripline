@@ -30,7 +30,7 @@ test('proxy: real MCP protocol, poisoned tool hidden, exfiltration blocked, legi
 
     const list = await rpc('tools/list');
     const names = list.result.tools.map((t: any) => t.name);
-    assert.deepEqual(names, ['read_file', 'send_email'], 'poisoned "add" must be removed from the list');
+    assert.deepEqual(names, ['read_file', 'send_email', 'fetch_page', 'read_secret'], 'poisoned "add" must be removed from the list');
 
     const read = await rpc('tools/call', { name: 'read_file', arguments: { path: '~/.aws/credentials' } });
     assert.match(textOf(read), /AKIAIOSFODNN7EXAMPLE/, 'reading private data is allowed');
