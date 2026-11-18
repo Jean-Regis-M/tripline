@@ -18,10 +18,12 @@ const CARRIER = /^(side_?note|notes?|context|metadata|extra|memo|reasoning|summa
 const BLOB = /[A-Za-z0-9+/]{60,}={0,2}/;
 const WEIGHT: Record<Severity, number> = { critical: 40, high: 25, medium: 10, low: 3 };
 
+/** JSON Schema bookkeeping keywords hold URLs and identifiers, not prose for the model. */
+const SCHEMA_META = new Set(['$schema', '$id', '$ref', '$comment', '$defs']);
 function strings(v: unknown, out: string[] = []): string[] {
   if (typeof v === 'string') out.push(v);
   else if (Array.isArray(v)) v.forEach((x) => strings(x, out));
-  else if (v && typeof v === 'object') for (const x of Object.values(v)) strings(x, out);
+  else if (v && typeof v === 'object') for (const [k, x] of Object.entries(v)) if (!SCHEMA_META.has(k)) strings(x, out);
   return out;
 }
 const snip = (s: string, m?: RegExpMatchArray | null) => {

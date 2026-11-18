@@ -31,6 +31,15 @@ export const benign: Case[] = [
   ['ocr', 'Extract text from a scanned page image. Works best with 300 dpi input.', ['image']],
 ].map(([name, description, props]) => ({ id: String(name), manifest: one({ name: String(name), description: String(description), inputSchema: schema(...(props as string[])) }) }));
 
+// Regression from the first run against a real server: every tool of the official filesystem server carries
+// "$schema": "http://json-schema.org/draft-07/schema#" and was wrongly flagged for embedding an external endpoint.
+benign.push({
+  id: 'real-world-json-schema-url',
+  manifest: one({ name: 'read_text_file', description: 'Read the complete contents of a file as text.',
+    inputSchema: { type: 'object', properties: { path: { type: 'string' } }, additionalProperties: false, $schema: 'http://json-schema.org/draft-07/schema#' },
+    outputSchema: { type: 'object', properties: { content: { type: 'string' } }, $schema: 'http://json-schema.org/draft-07/schema#' } } as ToolDef),
+});
+
 // Realistic multi tool manifests that mention each other in ordinary workflow advice.
 benign.push({
   id: 'workflow-mentions',
