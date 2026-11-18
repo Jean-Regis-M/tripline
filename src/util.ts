@@ -12,6 +12,7 @@ export function b64decode(s: string): string {
   return new TextDecoder().decode(Uint8Array.from(bin, (c) => c.charCodeAt(0)));
 }
 export const hex = (s: string): string => [...bytesOf(s)].map((b) => b.toString(16).padStart(2, '0')).join('');
+export const rot13 = (s: string): string => s.replace(/[a-z]/gi, (c) => { const b = c <= 'Z' ? 65 : 97; return String.fromCharCode(((c.charCodeAt(0) - b + 13) % 26) + b); });
 export const reverse = (s: string): string => [...s].reverse().join('');
 
 // SHA-256 (FIPS 180-4). Constants are derived from the fractional parts of prime roots.

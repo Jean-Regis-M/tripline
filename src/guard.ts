@@ -1,4 +1,4 @@
-import { b64, hex } from './util.ts';
+import { b64, hex, reverse } from './util.ts';
 
 export interface ToolPolicy {
   /** Output of this tool is sensitive; values derived from it must not leave. */
@@ -19,23 +19,24 @@ export type Decision = 'allow' | 'deny' | 'ask';
 export interface RuleHit { id: string; title: string; detail: string }
 export interface Verdict { decision: Decision; rules: RuleHit[]; labels: { untrusted: boolean; privateRead: boolean } }
 
+const MAX_FRAGMENTS = 5000;
+
 /** Break an output into fragments we can later recognise inside tool arguments. */
 export function fragments(text: string): string[] {
   const out = new Set<string>();
   const whole = text.trim();
-  if (whole.length >= 8) out.add(whole);
+  if (whole.length >= 6) out.add(whole);
   for (const line of text.split(/\r?\n/)) if (line.trim().length >= 10) out.add(line.trim());
   for (const tok of text.split(/[\s,;:=]+/)) {
-    if (tok.length >= 12 || (tok.length >= 8 && /\d/.test(tok) && /[a-z]/i.test(tok))) out.add(tok);
+    if (tok.length >= 12 || (tok.length >= 6 && /\d/.test(tok))) out.add(tok);
   }
-  return [...out].slice(0, 300);
+  return [...out].slice(0, MAX_FRAGMENTS);
 }
-const variants = (f: string) => [
-  f,
-  b64(f),
-  hex(f),
-  encodeURIComponent(f),
-];
+
+const squash = (s: string) => s.toLowerCase().replace(/[^a-z0-9]/g, '');
+const b64url = (s: string) => b64(s).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+const variants = (f: string) => [f, b64(f), b64(f).replace(/=+$/, ''), b64url(f), hex(f), hex(f).toUpperCase(), encodeURIComponent(f), reverse(f)];
+
 function argStrings(v: unknown, out: string[] = []): string[] {
   if (typeof v === 'string') out.push(v);
   else if (Array.isArray(v)) v.forEach((x) => argStrings(x, out));
@@ -44,16 +45,35 @@ function argStrings(v: unknown, out: string[] = []): string[] {
 }
 const mask = (s: string) => (s.length <= 6 ? '***' : `${s.slice(0, 4)}...(${s.length} chars)`);
 
-export function destinationAllowed(dest: unknown, allowed: string[]): boolean {
-  if (typeof dest !== 'string' || !dest) return false;
-  let host = dest.toLowerCase();
-  try { host = new URL(dest).hostname.toLowerCase(); } catch { /* not a URL */ }
-  const at = host.lastIndexOf('@');
-  const domain = at >= 0 ? host.slice(at + 1) : host;
-  return allowed.some((a) => {
-    const x = a.toLowerCase();
-    return x === host || x === domain || (!x.includes('@') && domain.endsWith('.' + x));
+const addressAllowed = (addr: string, allowed: string[]) => {
+  const a = addr.toLowerCase();
+  const domain = a.slice(a.lastIndexOf('@') + 1);
+  return allowed.some((x0) => {
+    const x = x0.toLowerCase();
+    return x.includes('@') ? x === a : domain === x || domain.endsWith('.' + x);
   });
+};
+const hostAllowed = (host: string, allowed: string[]) =>
+  allowed.some((x0) => { const x = x0.toLowerCase(); return !x.includes('@') && (host === x || host.endsWith('.' + x)); });
+
+/** True only if EVERY recipient or host in the value is allow-listed. Unparseable values are not allowed. */
+export function destinationAllowed(dest: unknown, allowed: string[]): boolean {
+  if (typeof dest !== 'string' || !dest.trim()) return false;
+  const d = dest.trim();
+  if (!d.includes('://') && !d.includes('/') && d.includes('@')) {
+    const emails = d.match(/[^\s,;<>"']+@[^\s,;<>"']+/g);
+    return !!emails && emails.every((e) => addressAllowed(e, allowed));
+  }
+  return d.split(/[,;\s]+/).filter(Boolean).every((t) => {
+    try { return hostAllowed(new URL(t.includes('://') ? t : 'https://' + t).hostname.toLowerCase(), allowed); } catch { return false; }
+  });
+}
+
+const URL_IN_TEXT = /https?:\/\/[^\s"'<>)]+/gi;
+function urlHosts(strings: string[]): string[] {
+  const hosts: string[] = [];
+  for (const s of strings) for (const m of s.match(URL_IN_TEXT) ?? []) { try { hosts.push(new URL(m).hostname.toLowerCase()); } catch { hosts.push('?'); } }
+  return hosts;
 }
 
 export class Guard {
@@ -70,25 +90,34 @@ export class Guard {
     if (p?.ingestsUntrusted) { this.untrusted.push(...fragments(output)); this.labels.untrusted = true; }
   }
 
-  private find(args: unknown, frags: string[]): string | undefined {
-    const hay = argStrings(args);
-    for (const f of frags) for (const v of variants(f)) if (hay.some((h) => h.includes(v))) return f;
+  private find(strings: string[], frags: string[]): string | undefined {
+    const joined = strings.join('\u0000');
+    const squashed = squash(strings.join(''));
+    for (const f of frags) {
+      if (variants(f).some((v) => joined.includes(v))) return f;
+      const sf = squash(f);
+      if (sf.length >= 6 && squashed.includes(sf)) return f; // case, spacing and punctuation changes, split across arguments
+    }
     return undefined;
   }
 
   check(tool: string, args: Record<string, unknown>): Verdict {
     const p = this.policy.tools[tool] ?? {};
+    const allowed = this.policy.allowedDestinations;
+    const strings = argStrings(args);
+    // Any tool that carries an external URL can be used as a channel (e.g. a GET with data in the query string).
+    const externalUrl = urlHosts(strings).some((h) => !hostAllowed(h, allowed));
     const rules: RuleHit[] = [];
     let decision: Decision = 'allow';
-    if (p.egress) {
+    if (p.egress || externalUrl) {
       const dest = p.destinationParam ? args[p.destinationParam] : undefined;
-      const ok = destinationAllowed(dest, this.policy.allowedDestinations);
-      const privHit = this.find(args, this.priv);
+      const ok = p.egress ? destinationAllowed(dest, allowed) : !externalUrl;
+      const privHit = this.find(strings, this.priv);
       const untrustedDest = typeof dest === 'string' && this.untrusted.some((u) => u.includes(dest));
       if (privHit && !ok) {
         decision = 'deny';
         rules.push({ id: 'R1', title: 'Private data leaving the trust boundary',
-          detail: `Argument contains data read from a private source (${mask(privHit)}; also checked base64/hex/URL encodings) and destination is not allow-listed.` });
+          detail: `Argument contains data read from a private source (${mask(privHit)}; also checked encodings, case and spacing changes) and the destination is not allow-listed.` });
       }
       if (untrustedDest && !ok) {
         decision = 'deny';
