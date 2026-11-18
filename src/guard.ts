@@ -1,3 +1,4 @@
+import { detectSecrets } from './detect.ts';
 import { atbash, b64, base32, caesar, hex, reverse, rot47 } from './util.ts';
 
 export interface ToolPolicy {
@@ -14,6 +15,8 @@ export interface Policy {
   tools: Record<string, ToolPolicy>;
   allowedDestinations: string[];
   mode?: 'enforce' | 'monitor';
+  /** Recognise secret shaped data by content (keys, tokens, cards...) even without provenance. Default true. */
+  detectSecrets?: boolean;
 }
 export type Decision = 'allow' | 'deny' | 'ask';
 export interface RuleHit { id: string; title: string; detail: string }
@@ -170,6 +173,20 @@ export class Guard {
         decision = 'deny';
         rules.push({ id: 'R3', title: 'Destination chosen by untrusted content',
           detail: 'The destination appeared in untrusted tool output, not in the user request or policy allow-list.' });
+      }
+      // Content based detection needs no provenance: it recognises what the data IS, many kinds at once.
+      const found = this.policy.detectSecrets === false || ok ? [] : strings.flatMap((s) => detectSecrets(s));
+      const definite = found.filter((f) => f.definite);
+      if (definite.length) {
+        decision = 'deny';
+        const kinds = [...new Set(definite.map((f) => f.kind + (f.encoded ? ` (${f.encoded} encoded)` : '')))];
+        rules.push({ id: 'R4', title: 'Secret shaped data leaving the trust boundary',
+          detail: `The arguments contain ${kinds.length} kind(s) of secret by content: ${kinds.join(', ')}. No provenance was needed, and the destination is not allow-listed.` });
+      } else if (found.length && decision === 'allow') {
+        decision = 'ask';
+        const kinds = [...new Set(found.map((f) => f.kind))];
+        rules.push({ id: 'R5', title: 'Possible secret in an outbound call',
+          detail: `The arguments contain data shaped like a credential (${kinds.join(', ')}); it is not conclusive, so a human must approve it.` });
       }
       if (decision === 'allow' && this.labels.untrusted && this.labels.privateRead && !ok) {
         decision = 'ask';
