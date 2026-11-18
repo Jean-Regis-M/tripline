@@ -1,0 +1,115 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Tripline: a firewall for AI agent tool calls</title>
+<meta name="description" content="Tripline tracks where an AI agent's data came from and blocks tool calls that would leak it. Prompt injection stopped by design, not by hoping the model behaves.">
+<link rel="icon" href="favicon.svg" type="image/svg+xml">
+<link rel="stylesheet" href="app.css">
+</head>
+<body>
+<a class="skip" href="#replay">Skip to the demo</a>
+<header class="top">
+  <a class="brand" href="#top" aria-label="Tripline home">
+    <svg width="26" height="26" viewBox="0 0 32 32" aria-hidden="true"><rect width="32" height="32" rx="8" fill="#ff5d4a"/><path d="M6 23 L13 9 L19 18 L26 7" fill="none" stroke="#0b0f14" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/></svg>
+    <span>Tripline</span>
+  </a>
+  <nav aria-label="Sections">
+    <a href="#how">How it works</a><a href="#replay">Attack replay</a><a href="#scan">Scanner</a><a href="#bench">Results</a><a href="#limits">Limits</a>
+  </nav>
+</header>
+
+<main id="top">
+<section class="hero">
+  <div class="hero-copy">
+    <p class="eyebrow">Open source &middot; runs 100% in your browser</p>
+    <h1>An AI agent will do what the <em>text</em> tells it to.<br>Tripline decides what it is <em>allowed</em> to do.</h1>
+    <p class="lead">Email, web pages and third-party tools can smuggle instructions into an agent. Tripline follows every piece of data from where it was read to where it is about to be sent, and trips the wire before a secret leaves.</p>
+    <div class="cta">
+      <a class="btn primary" href="#replay">Watch an attack get stopped</a>
+      <a class="btn" href="#scan">Scan a tool manifest</a>
+    </div>
+    <dl class="stats" id="stats" aria-live="polite"></dl>
+  </div>
+  <figure class="hero-art" aria-label="Diagram: a secret leaving an agent is blocked by Tripline while a legitimate message passes">
+    <svg viewBox="0 0 560 360" role="img" aria-hidden="true">
+      <defs>
+        <linearGradient id="g1" x1="0" x2="1"><stop offset="0" stop-color="#7cc4ff" stop-opacity=".0"/><stop offset="1" stop-color="#7cc4ff" stop-opacity=".35"/></linearGradient>
+      </defs>
+      <g class="lane"><rect x="12" y="40" width="130" height="64" rx="12"/><text x="77" y="68">Untrusted</text><text x="77" y="88" class="sub">email, web, tools</text></g>
+      <g class="lane"><rect x="12" y="148" width="130" height="64" rx="12"/><text x="77" y="176">Agent</text><text x="77" y="196" class="sub">follows the text</text></g>
+      <g class="lane"><rect x="12" y="256" width="130" height="64" rx="12"/><text x="77" y="284">Private data</text><text x="77" y="304" class="sub">keys, files</text></g>
+      <path class="wire" d="M142 72 C200 72 200 180 252 180"/><path class="wire" d="M142 180 L252 180"/><path class="wire" d="M142 288 C200 288 200 180 252 180"/>
+      <g class="gate"><rect x="252" y="110" width="56" height="140" rx="14"/><path d="M262 232 L274 160 L288 200 L300 132" class="zig"/><text x="280" y="268" class="gtxt">Tripline</text></g>
+      <path class="wire out" d="M308 180 L410 180"/>
+      <g class="lane out"><rect x="410" y="60" width="138" height="64" rx="12"/><text x="479" y="88">me@student.test</text><text x="479" y="108" class="sub">allow-listed</text></g>
+      <g class="lane evil"><rect x="410" y="236" width="138" height="64" rx="12"/><text x="479" y="264">attacker.test</text><text x="479" y="284" class="sub">not allow-listed</text></g>
+      <path class="wire out" d="M358 180 C380 180 380 92 410 92"/><path class="wire evilw" d="M358 180 C380 180 380 268 410 268"/>
+      <circle r="7" class="pk bad" opacity="0"><animateMotion dur="5s" repeatCount="indefinite" keyPoints="0;0.62;0.62;0.62" keyTimes="0;0.55;0.8;1" calcMode="linear" path="M142 288 C200 288 200 180 252 180"/><animate attributeName="opacity" values="1;1;0;0" keyTimes="0;0.55;0.62;1" dur="5s" repeatCount="indefinite"/></circle>
+      <g class="burst"><circle cx="252" cy="180" r="10"><animate attributeName="r" values="8;34" keyTimes="0;1" begin="2.75s;7.75s" dur=".6s" repeatCount="1" fill="freeze"/><animate attributeName="opacity" values=".9;0" begin="2.75s;7.75s" dur=".6s" repeatCount="1" fill="freeze"/></circle></g>
+      <circle r="7" class="pk good" opacity="0"><animateMotion dur="5s" begin="2.5s" repeatCount="indefinite" path="M142 180 L308 180 C358 180 380 92 479 92"/><animate attributeName="opacity" values="0;1;1;0" keyTimes="0;.1;.85;1" dur="5s" begin="2.5s" repeatCount="indefinite"/></circle>
+    </svg>
+    <figcaption><span class="dot bad"></span>stolen key blocked <span class="dot good"></span>legitimate send allowed</figcaption>
+  </figure>
+</section>
+
+<section id="how" class="band">
+  <h2>Three layers, no model trust required</h2>
+  <div class="cards">
+    <article><span class="num">1</span><h3>Scan before install</h3><p>Static analysis of MCP tool manifests finds hidden instructions, invisible Unicode, steering of other tools, sensitive file references and data smuggling parameters. A SHA-256 lockfile catches a tool that changes after approval (a rug pull).</p></article>
+    <article><span class="num">2</span><h3>Track at runtime</h3><p>Every tool output is labelled <b>private</b> or <b>untrusted</b>. Fragments of private data are fingerprinted, including their base64, hex and URL encodings, so copies are recognised inside later arguments.</p></article>
+    <article><span class="num">3</span><h3>Decide deterministically</h3><p>Three small rules run before each outbound call: no private data to unknown destinations, no destinations chosen by untrusted text, and human approval when a session has seen both untrusted input and private data.</p></article>
+  </div>
+</section>
+
+<section id="replay" class="band">
+  <h2>Attack replay</h2>
+  <p class="sec-lead">Pick a scenario. The same agent runs twice: once unprotected, once behind Tripline.</p>
+  <div class="picker" id="picker" role="tablist" aria-label="Scenarios"></div>
+  <div id="scenarioInfo" class="info"></div>
+  <div class="toolbar"><button id="replayBtn" class="btn small">Replay step by step</button></div>
+  <div class="cols">
+    <div class="col bad"><h3>Without Tripline <span id="badTag" class="tag"></span></h3><ol id="offSteps" class="steps"></ol></div>
+    <div class="col good"><h3>With Tripline <span id="goodTag" class="tag"></span></h3><ol id="onSteps" class="steps"></ol></div>
+  </div>
+  <p class="note">The attacked agent is a deterministic, intentionally gullible stand-in that obeys <code>ASSISTANT_ACTION</code> lines found in tool output, so every run is reproducible. Every secret is synthetic.</p>
+</section>
+
+<section id="scan" class="band">
+  <h2>Tool manifest scanner</h2>
+  <p class="sec-lead">Paste any MCP style manifest, or load an example. Nothing leaves your browser.</p>
+  <div class="toolbar">
+    <button id="loadPoisoned" class="btn small">Poisoned example</button>
+    <button id="loadClean" class="btn small">Clean example</button>
+    <button id="doScan" class="btn small primary">Scan</button>
+    <button id="doLock" class="btn small">Pin lockfile</button>
+    <button id="doPull" class="btn small">Simulate rug pull</button>
+    <button id="doVerify" class="btn small">Verify lockfile</button>
+  </div>
+  <div class="cols">
+    <div class="col"><label for="manifest" class="lab">Manifest JSON</label><textarea id="manifest" spellcheck="false"></textarea></div>
+    <div class="col"><span class="lab">Result</span><div id="scanOut" class="out" aria-live="polite"><p class="muted">Load an example, then press Scan.</p></div></div>
+  </div>
+</section>
+
+<section id="bench" class="band">
+  <h2>Results</h2>
+  <p class="sec-lead">Computed live in your browser from the same scenarios the automated test suite asserts.</p>
+  <div class="tablewrap"><table id="benchTable"><thead><tr><th>Scenario</th><th>Type</th><th>Leak without</th><th>Leak with</th><th>Task completed</th><th>Calls blocked</th></tr></thead><tbody></tbody></table></div>
+</section>
+
+<section id="limits" class="band">
+  <h2>What Tripline does not do</h2>
+  <ul class="limits">
+    <li><b>It is not a model.</b> The demo agent is scripted. Tripline's guarantees come from the policy layer, and a real model would only change what the agent tries to do.</li>
+    <li><b>Provenance is fragment based.</b> Exact copies and common encodings are caught. Paraphrased or heavily transformed data is caught only by the session level approval rule, which costs a prompt for the user.</li>
+    <li><b>Policy needs labels.</b> Tools are labelled by hand or by a name based heuristic. An unusual tool name can be mislabelled, and unlabelled tools are treated as harmless.</li>
+    <li><b>The scanner is heuristic.</b> It has false negatives. Pair it with pinning and the runtime guard.</li>
+  </ul>
+</section>
+</main>
+<footer><span>Tripline &middot; GenHacks 2026 &middot; MIT licensed</span><a href="https://github.com/Jean-Regis-M/tripline">Source on GitHub</a></footer>
+<script type="module" src="app.js"></script>
+</body>
+</html>
