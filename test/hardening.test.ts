@@ -11,7 +11,7 @@ import { Guard, destinationAllowed, type Policy } from '../src/guard.ts';
 import { inferPolicy } from '../src/infer.ts';
 import { runProxy } from '../src/proxy.ts';
 import { scanManifest } from '../src/scanner.ts';
-import { rot13 } from '../src/util.ts';
+import { atbash, b64, base32, caesar, rot13, rot47, spellOut } from '../src/util.ts';
 
 const cli = fileURLToPath(new URL('../src/cli.ts', import.meta.url));
 const server = fileURLToPath(new URL('./fixtures/fake-mcp-server.mjs', import.meta.url));
@@ -70,12 +70,31 @@ test('guard: multi recipient mail with one bad address leaks nothing', () => {
   assert.equal(leak(guardWithSecret(), SECRET, 'evil@evil.test,me@student.test').decision, 'deny');
 });
 
-test('known limitation, documented: ROT13 evades matching and is caught only by the session rule', () => {
+test('guard: ROT13, every Caesar shift, Atbash, ROT47, base32 and double base64 are caught (R1)', () => {
+  const bodies: [string, string][] = [
+    ['rot13', rot13(SECRET)],
+    ['caesar 5', caesar(SECRET, 5)],
+    ['caesar 19', caesar(SECRET, 19)],
+    ['atbash', atbash(SECRET)],
+    ['rot47', rot47(SECRET)],
+    ['base32', base32(SECRET)],
+    ['double base64', b64(b64(SECRET))],
+    ['rot13 then spaced and upper cased', [...rot13(SECRET)].join(' ').toUpperCase()],
+  ];
+  for (const [name, body] of bodies) {
+    const v = leak(guardWithSecret(), body);
+    assert.equal(v.decision, 'deny', `${name} should be denied`);
+    assert.equal(v.rules[0].id, 'R1', name);
+  }
+});
+
+test('known limitation, documented: spelling the secret out in code words evades matching and is caught only by the session rule', () => {
+  const spelled = spellOut(SECRET);
   const g = guardWithSecret();
-  assert.equal(leak(g, rot13(SECRET)).decision, 'allow', 'without untrusted input in the session this is NOT caught');
+  assert.equal(leak(g, spelled).decision, 'allow', 'without untrusted input in the session this is NOT caught');
   g.policy.tools.read_inbox = { ingestsUntrusted: true };
   g.observe('read_inbox', 'hello from a stranger');
-  assert.equal(leak(g, rot13(SECRET)).decision, 'ask');
+  assert.equal(leak(g, spelled).decision, 'ask');
 });
 
 test('scanner: payloads in title, annotations, outputSchema and phrasing variants are caught', () => {
@@ -167,4 +186,45 @@ test('rule R2 asks for approval: denied by default, allowed only when an approve
 test('inferPolicy: URL fetchers are treated as egress channels', () => {
   const p = inferPolicy([{ name: 'http_get', description: '', inputSchema: { properties: { url: {} } } }]);
   assert.deepEqual(p.http_get, { egress: true, destinationParam: 'url' });
+});
+
+test('guard performance: a large private file does not make egress checks slow', () => {
+  const g = new Guard(policy());
+  const big = Array.from({ length: 3000 }, (_, i) => `line ${i} token_${(i * 7919).toString(36)}x${i} filler text here for realism`).join('\n');
+  g.observe('read_file', big);
+  const body = 'hello '.repeat(5000);
+  let t = performance.now();
+  leak(g, body);
+  const first = performance.now() - t;
+  t = performance.now();
+  leak(g, body);
+  const later = performance.now() - t;
+  assert.ok(first < 4000, `first check took ${first.toFixed(0)} ms`);
+  assert.ok(later < 200, `later checks took ${later.toFixed(0)} ms`);
+});
+
+test('CLI approval command: exit 0 approves R2, any other outcome denies (fail closed)', async () => {
+  const approver = fileURLToPath(new URL('./fixtures/approve.mjs', import.meta.url));
+  const cmd = `"${process.execPath}" "${approver}"`;
+  for (const [answer, shouldSend] of [['yes', true], ['no', false], ['crash', false]] as const) {
+    const log = join(mkdtempSync(join(tmpdir(), 'tl-ap-')), 'asked.txt');
+    const { p, rpc, call } = startProxy(['--approve-cmd', cmd], { TRIPLINE_APPROVE_RESULT: answer, TRIPLINE_APPROVE_LOG: log });
+    try {
+      await rpc('tools/list');
+      await call('fetch_page', { url: 'https://student.test/page' });
+      await call('read_file', { path: '~/.aws/credentials' });
+      const r = await call('send_email', { to: 'someone@elsewhere.test', body: 'a harmless looking summary' });
+      if (shouldSend) assert.match(textOf(r), /^sent #1/, 'approved: the call reaches the server');
+      else { assert.equal(r.result.isError, true, `${answer}: the call is refused`); assert.match(textOf(r), /R2/); }
+      assert.ok(existsSync(log), 'the approver was actually consulted');
+    } finally { p.kill(); }
+  }
+  const missing = startProxy(['--approve-cmd', 'this-command-does-not-exist-12345']);
+  try {
+    await missing.rpc('tools/list');
+    await missing.call('fetch_page', { url: 'https://student.test/page' });
+    await missing.call('read_file', { path: '~/.aws/credentials' });
+    const r = await missing.call('send_email', { to: 'someone@elsewhere.test', body: 'x' });
+    assert.equal(r.result.isError, true, 'a missing approver command denies');
+  } finally { missing.p.kill(); }
 });
