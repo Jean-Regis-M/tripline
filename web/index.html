@@ -100,7 +100,7 @@
   <header class="sec-head"><span class="no">05</span><h2>Limits</h2><p>What Tripline does not do.</p></header>
   <ul class="limits">
     <li><b>It is not a model.</b> The demo agent is scripted. Tripline's decisions come from deterministic rules, and a real model would only change what the agent tries to do. This is not a proof of security.</li>
-    <li><b>Provenance is fragment based.</b> Copies, case and spacing changes, reversal and common encodings are caught. ROT13 or paraphrase is caught only by the session level approval rule, which costs a prompt for the user.</li>
+    <li><b>Provenance is fragment based.</b> Copies, case and spacing changes, reversal, common encodings and Caesar style ciphers are caught. Spelling data out in other words, keyed ciphers or paraphrase are caught only by the session level approval rule, which costs a prompt for the user.</li>
     <li><b>Policy needs labels.</b> Tools are labelled by hand or by a name based heuristic. An unusual tool name can be mislabelled, and unlabelled tools are treated as harmless.</li>
     <li><b>The scanner is heuristic.</b> It has false negatives. Pair it with pinning and the runtime guard.</li>
   </ul>

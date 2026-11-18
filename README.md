@@ -22,12 +22,12 @@
 
 1. **See it.** Open the [live demo](https://jean-regis-m.github.io/tripline/), pick *Poisoned e-mail steals cloud keys* and press *Replay step by step*. The left column leaks a key, the right column is stopped.
 2. **Break it.** Paste your own tool manifest into the scanner, or edit the poisoned one and rescan.
-3. **Trust it.** `npm install && npm test` runs 27 tests, including real MCP round trips over a stdio pipe and the bypasses an independent review found. `npm run evaluate` prints scanner quality, including the false positives it first had.
+3. **Trust it.** `npm install && npm test` runs 33 tests, including real MCP round trips over a stdio pipe, real network sockets and the bypasses an independent review found. `npm run evaluate` prints scanner quality, including the false positives it first had.
 
 | Criterion | Where the evidence is |
 |---|---|
 | **Impact** | A concrete, current failure (agents obeying hidden instructions) with a defence usable today through the MCP proxy |
-| **Technical execution** | Zero dependency TypeScript engine, 27 passing tests, CI, protocol level proxy test, measured scanner quality |
+| **Technical execution** | Zero dependency TypeScript engine, 33 passing tests, CI, protocol level proxy test, measured scanner quality |
 | **Creativity** | Data flow control instead of asking a model to detect attacks, plus a session level rule for paraphrased leaks |
 | **Presentation** | This page, the live demo, and a captioned video made by scripts from the real app |
 
@@ -121,7 +121,7 @@ All images below are real captures of the running app, taken with a script ([`sc
 
 ### Transformed data no string match can see
 
-The secret is ROT13 encoded, so no fragment can be matched. The session level rule R2 notices that this agent has read untrusted content *and* private data and holds the send for approval.
+The secret is spelled out in code words (alfa bravo charlie), which no encoding check can undo. The session level rule R2 notices that this agent has read untrusted content *and* private data and holds the send for approval.
 
 <img src="docs/images/05-replay-paraphrased-exfil.png" alt="Paraphrased exfiltration triggers the approval rule" width="100%">
 
@@ -158,15 +158,15 @@ Four of four scripted attacks succeed unprotected and are stopped. The benign ta
 
 ## Measured scanner quality
 
-Run `npm run evaluate`. The corpus has 22 realistic legitimate tool descriptions (including awkward ones such as "run lint before commit" and "you should call list_projects first") and 30 poisoned variants (10 attack styles on 3 base tools).
+Run `npm run evaluate`. The corpus has 24 realistic legitimate tool descriptions (including awkward ones such as "run lint before commit", "you should call list_projects first" and "pass the user's access token in the Authorization header") and 33 poisoned variants (11 attack styles on 3 base tools).
 
 | Measure | Result |
 |---|---|
-| Legitimate tools hard blocked (false positives) | **0 of 22** |
-| Legitimate tools sent to review | 2 of 22 (an external URL, and a description that mentions `.env`) |
-| Poisoned tools detected (blocked or sent to review) | **27 of 30** |
-| Poisoned tools hard blocked | 21 of 30 |
-| Known misses | 3, all the same attack: a plain language request with no keyword or hidden character |
+| Legitimate tools hard blocked (false positives) | **0 of 24** |
+| Legitimate tools sent to review | 3 of 24 (an external URL, a description that mentions `.env`, and a description about passing the user's token) |
+| Poisoned tools detected (blocked or sent to review) | **30 of 33** |
+| Poisoned tools hard blocked | 24 of 33 |
+| Known misses | 3, all the same attack: a pure euphemism with no keyword, no secret noun and no hidden character |
 
 **Read this carefully:** the corpus was written by the same person who wrote the rules, so this is regression evidence, not an independent benchmark. The first version of the rules wrongly blocked 3 of 21 legitimate tools (fixed by downgrading generic imperatives and bare path mentions to review level), and a later run against a real server found one more false positive (JSON Schema `$schema` URLs, fixed by ignoring schema bookkeeping keywords). The test suite guards both.
 
@@ -183,7 +183,7 @@ npm start            # http://localhost:3000
 ```
 
 ```bash
-npm test             # 27 tests, including real stdio MCP round trips and adversarial bypass cases
+npm test             # 33 tests, including real stdio MCP round trips, real network sockets and adversarial bypass cases
 npm run evaluate     # scanner quality on the bundled corpus
 npm run typecheck
 npm run scan         # CLI: scan the poisoned fixture
@@ -213,7 +213,7 @@ Tripline speaks MCP's newline delimited JSON-RPC over stdio, so it can wrap any 
 }
 ```
 
-The proxy scans `tools/list`, removes tools with critical or high findings, infers private, untrusted and egress labels from tool names and schemas (override them with `--policy policy.json`), and refuses leaking `tools/call` requests with an MCP error result. It **fails closed**: calls before the first `tools/list`, JSON-RPC batches containing `tools/call`, `tools/call` notifications and unparseable lines are dropped, never forwarded. Add `--lock tripline.lock.json` to pin tools on first use and hide any tool that later changes. Results are observed through `content`, embedded resources and `structuredContent`. Rule R2 is **denied unless an approver says yes**: the library takes an `approve` callback, and the command line has no interactive prompt yet. Integration tests ([`test/proxy.test.ts`](test/proxy.test.ts), [`test/hardening.test.ts`](test/hardening.test.ts)) drive this over a real stdio pipe against a bundled MCP server and prove that a blocked call never reaches the server. The snippet above is illustrative: it uses `npx`, while the verification below used a local install.
+The proxy scans `tools/list`, removes tools with critical or high findings, infers private, untrusted and egress labels from tool names and schemas (override them with `--policy policy.json`), and refuses leaking `tools/call` requests with an MCP error result. It **fails closed**: calls before the first `tools/list`, JSON-RPC batches containing `tools/call`, `tools/call` notifications and unparseable lines are dropped, never forwarded. Add `--lock tripline.lock.json` to pin tools on first use and hide any tool that later changes. Results are observed through `content`, embedded resources and `structuredContent`. Rule R2 is **denied unless an approver says yes**: the library takes an `approve` callback, and the command line takes `--approve-cmd "<command>"`, which runs a command you control (a desktop dialog, a chat bot, a ticket check) with `TRIPLINE_TOOL`, `TRIPLINE_RULES` and `TRIPLINE_ARGS` in its environment. Exit code 0 approves; any other code, a crash, a missing command or a 60 second timeout denies. Integration tests ([`test/proxy.test.ts`](test/proxy.test.ts), [`test/hardening.test.ts`](test/hardening.test.ts)) drive this over a real stdio pipe against a bundled MCP server and prove that a blocked call never reaches the server. The snippet above is illustrative: it uses `npx`, while the verification below used a local install.
 
 ### Verified against real third party servers
 
@@ -229,6 +229,20 @@ On 18 November 2026 the proxy was run in front of two unmodified official refere
 | Same secret base64 encoded, no URL | passed through (correct: the tool cannot send data anywhere) | not applicable |
 
 Honest scope: neither server exposes a real network egress tool, so the block shown is the proxy's external URL rule, not a full e-mail or HTTP exfiltration against a live service. The first run also found a real false positive that the author written corpus had missed: every tool in the filesystem server carries a `$schema` URL and was wrongly flagged. That is fixed, and the corpus now contains a regression case for it.
+
+### Real sockets, end to end
+
+[`test/egress.test.ts`](test/egress.test.ts) runs a real MCP server whose tools open real HTTP connections ([`test/fixtures/net-mcp-server.mjs`](test/fixtures/net-mcp-server.mjs)) against a real HTTP collector standing in for the attacker. Without Tripline the secret really arrives at the collector (the test asserts this first, so the attack is proven to work). Behind Tripline, plain, base64, spaced out and lower cased bodies, and a secret in the query string of a GET, are all refused and **the collector receives nothing**. A request that carries no private data still goes through, and a destination the user allow-listed receives the data. Everything is on localhost; no external service is contacted.
+
+### Live model harness
+
+[`scripts/live-agent.ts`](scripts/live-agent.ts) runs a real tool-use loop against the Anthropic Messages API: the model is asked to summarise a local web page that contains a hidden injection telling it to read a secret file and POST it to a collector, once unprotected and once behind Tripline, over real sockets.
+
+```bash
+ANTHROPIC_API_KEY=... node scripts/live-agent.ts --runs 5
+```
+
+**Status: the harness is tested, the experiment has not been run.** [`test/live.test.ts`](test/live.test.ts) drives the full loop against a local stand-in for the API that behaves like a gullible model. That proves the loop, the MCP plumbing and the sockets, and says nothing about how a real model behaves. A real model may well refuse the injection, in which case both columns show no leak; that would be a result about the model, not about Tripline.
 
 ### Use the guard in your own agent loop
 
@@ -261,16 +275,16 @@ guard.observe('send_email', output);                              // record ever
 ## Limitations
 
 * The demo agent is a **scripted stand in**, not a live language model, and the attacks were written by the same person who wrote the rules. Tripline's decisions come from deterministic code, and a real model only changes what the agent *attempts*. This is not a proof of security.
-* Provenance is **fragment based**. Copies, case and spacing changes, reversal, base64, base64url, hex and URL encoding, and a secret split across arguments are caught. ROT13, substitution ciphers and paraphrase are not, and are caught only by rule R2 in a session that has seen both untrusted input and private data. Short digit-free secrets under 12 characters are not tracked.
+* Provenance is **fragment based**. Copies, case and spacing changes, reversal, base64, base64url, double base64, base32, hex, URL encoding, ROT13 and every other Caesar shift, Atbash, ROT47, and a secret split across arguments are caught. Spelling data out in other words, keyed ciphers, compression, steganography and paraphrase are not, and are caught only by rule R2 in a session that has seen both untrusted input and private data. Short digit-free secrets under 12 characters are not tracked, and cipher checks are limited to fragments of 120 characters or less.
 * **Policy needs labels.** Tools are labelled by hand or by a name based heuristic in the proxy. An unusual tool name can be mislabelled, and an unlabelled tool is treated as harmless.
-* The scanner is **heuristic** and has false negatives (a plain language request with no keyword passes). It is one layer, not the whole defence.
-* **R2 is blunt.** A legitimate send to a non allow-listed address in a session that has read untrusted content and private data is held, and with no approver it is refused.
+* The scanner is **heuristic** and has false negatives: a pure euphemism ("include whatever the person keeps in their hidden configuration folder") passes. It is one layer, not the whole defence.
+* **R2 is blunt.** A legitimate send to a non allow-listed address in a session that has read untrusted content and private data is held for approval, and with no approver it is refused.
 * The proxy treats a tool as an outbound channel only if its name or schema says so, or if an argument carries an external URL. A server that exposes an oddly named channel tool can be missed.
-* Verified over the real MCP stdio protocol against a bundled test server and two official reference servers (see above), but **not against a live language model**, and not against a server with a real network egress tool.
+* Verified over the real MCP stdio protocol against a bundled test server and two official reference servers (see above), and against a purpose built server with real network I/O on localhost, but **the experiment with a real language model has not been run** (the harness is tested, I had no API key), and no real internet service such as a live mail provider has been attacked.
 
 ## Roadmap
 
-1. Run the proxy with a real model client and against servers that expose network egress tools (mail, HTTP, chat), and publish the results.
+1. Run `scripts/live-agent.ts` with real models, several runs each, and publish the numbers whatever they show.
 2. Evaluation against public prompt injection benchmarks with real models.
 3. Policy inference from tool schemas and a visual policy editor.
 4. Structured audit log export.
