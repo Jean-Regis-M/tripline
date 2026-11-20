@@ -1,5 +1,5 @@
 {
   "extends": "./tsconfig.json",
   "compilerOptions": { "noEmit": false, "outDir": "web/engine", "rootDir": "src", "rewriteRelativeImportExtensions": true, "allowImportingTsExtensions": false, "target": "ES2022", "module": "ES2022", "moduleResolution": "Bundler", "types": [] },
-  "include": ["src/util.ts","src/detect.ts","src/types.ts","src/scanner.ts","src/pin.ts","src/guard.ts","src/simulator.ts","src/scenarios.ts"]
+  "include": ["src/util.ts","src/detect.ts","src/explain.ts","src/arena.ts","src/types.ts","src/scanner.ts","src/pin.ts","src/guard.ts","src/simulator.ts","src/scenarios.ts"]
 }
