@@ -13,6 +13,7 @@ const ctx = await browser.newContext({ viewport: { width: 1440, height: 900 }, d
 const page = await ctx.newPage();
 await page.goto(base, { waitUntil: 'networkidle' });
 await page.mouse.move(2, 2);
+await page.addStyleTag({ content: '.top{position:static!important}' }); // a sticky header would bleed into element captures
 const shot = async (name, target) => {
   if (!target) return page.screenshot({ path: `${outDir}${name}.png` });
   await page.mouse.move(2, 2);
@@ -39,12 +40,22 @@ if (!/DRIFT/.test(drift)) throw new Error('UI smoke test failed: rug pull was no
 await shot('08-rug-pull-drift', '#scan');
 await page.locator('#picker button[data-id="multi-vector"]').click();
 await shot('13-replay-multi-vector', '#replay');
-await page.locator('#doDetect').click();
-const detected = await page.locator('#detectOut .verdict').innerText();
-if (!/BLOCKED/.test(detected)) throw new Error('UI smoke test failed: the detector did not block the mixed sample, got: ' + detected);
-await shot('14-detector-mixed', '#detect');
-await page.locator('#loadEncoded').click(); await page.locator('#doDetect').click();
-await shot('15-detector-encoded', '#detect');
+// Arena: three honest states. A disguise that is stopped (with the X-ray), the documented bypass, and the same bypass held by R2.
+const send = async (id) => { await page.locator(`#presets [data-id="${id}"]`).click(); await page.locator('#sendBtn').click(); };
+await send('base64');
+if (!/STOPPED/.test(await page.locator('#arenaOut .verdict').innerText())) throw new Error('UI smoke test failed: the arena did not stop base64');
+await shot('14-arena-stopped-base64', '#arena');
+await send('rot13');
+await shot('15-arena-stopped-rot13', '#arena');
+await send('codewords');
+if (!/GOT IT OUT/.test(await page.locator('#arenaOut .verdict').innerText())) throw new Error('UI smoke test failed: the documented code word bypass should get through in a clean session');
+await shot('16-arena-documented-bypass', '#arena');
+await page.locator('#tUnt').check(); await send('codewords');
+if (!/HELD/.test(await page.locator('#arenaOut .verdict').innerText())) throw new Error('UI smoke test failed: R2 should hold the code word message');
+await shot('17-arena-held-by-r2', '#arena');
+await page.locator('#tUnt').uncheck();
+await page.locator('#presets [data-id="many"]').click(); await page.locator('#sendBtn').click();
+await shot('18-arena-many-kinds', '#arena');
 await shot('09-results', '#bench');
 await shot('10-limits', '#limits');
 const m = await browser.newContext({ viewport: { width: 390, height: 844 }, deviceScaleFactor: 3, colorScheme: 'light', isMobile: true, reducedMotion: 'reduce' });

@@ -52,7 +52,7 @@ const plan = {
   s5: replay('paraphrased-exfil', [[6500, () => scrollBy(380)]]),
   s6: replay('benign-forward', [[4800, () => scrollBy(300)]]),
   s7: [[300, () => scrollTo('#scan', 70)], [1500, () => click('#doScan')], [9500, () => click('#doLock')], [11500, () => click('#doPull')], [13800, () => click('#doVerify')]],
-  s7d: [[300, () => scrollTo('#detect', 70)], [2500, () => click('#doDetect')], [9500, () => click('#loadEncoded')], [10700, () => click('#doDetect')], [15500, () => click('#loadBenign')], [16700, () => click('#doDetect')]],
+  s7d: [[300, () => scrollTo('#arena', 70)], [3000, () => click('#presets [data-id="base64"]')], [4200, () => click('#sendBtn')], [9000, () => click('#presets [data-id="rot13"]')], [10200, () => click('#sendBtn')], [14700, () => click('#presets [data-id="codewords"]')], [15900, () => click('#sendBtn')], [21500, () => click('#tUnt')], [22600, () => click('#sendBtn')]],
   s8: [[300, () => scrollTo('#bench', 70)], [14000, () => scrollTo('#limits', 70)], [26500, () => scrollTo('#top', 0)]],
 };
 

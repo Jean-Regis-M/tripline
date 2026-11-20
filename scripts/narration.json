@@ -29,10 +29,10 @@
   },
   {
     "id": "s7d",
-    "text": "Tripline also recognises what data is, not just where it came from. Paste any outbound message and it finds many kinds of secret at once: cloud keys, tokens, private keys, card numbers and more, even hidden inside base64. A harmless message passes."
+    "text": "Now try to beat it yourself. In the arena you are the attacker: write any message that sneaks the secret out. The X-ray shows where Tripline sees it hiding, even inside base64 or ROT13. One disguise, code words, does get through in a clean session, and we show that openly. With untrusted content around, rule R2 holds it."
   },
   {
     "id": "s8",
-    "text": "Every number here is computed live from the same scenarios the test suite asserts. Five of five attacks succeed unprotected and are stopped, and the legitimate task is never blocked. We are upfront about limits too: the demo agent is scripted, and paraphrased leaks cost an approval prompt. Tripline is a dependency free TypeScript engine that runs entirely in your browser, and it is open source. Tripline. Do not trust the text. Trust the wire."
+    "text": "Five of five attacks succeed unprotected and are stopped, and the legitimate task is never blocked. We are upfront about limits too. Tripline is a dependency free TypeScript engine that runs entirely in your browser, and it is open source. Tripline. Do not trust the text. Trust the wire."
   }
 ]
