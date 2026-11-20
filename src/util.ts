@@ -27,10 +27,20 @@ export function base32(s: string): string {
   for (let i = 0; i < bits.length; i += 5) out += B32[parseInt(bits.slice(i, i + 5).padEnd(5, '0'), 2)];
   return out;
 }
+export function base32decode(s: string): string {
+  const clean = s.toUpperCase().replace(/=+$/, '');
+  let bits = '';
+  for (const c of clean) { const i = B32.indexOf(c); if (i < 0) return ''; bits += i.toString(2).padStart(5, '0'); }
+  const bytes: number[] = [];
+  for (let i = 0; i + 8 <= bits.length; i += 8) bytes.push(parseInt(bits.slice(i, i + 8), 2));
+  return new TextDecoder().decode(Uint8Array.from(bytes));
+}
 const CODE_WORDS: Record<string, string> = {};
 'alfa bravo charlie delta echo foxtrot golf hotel india juliet kilo lima mike november oscar papa quebec romeo sierra tango uniform victor whiskey xray yankee zulu'.split(' ').forEach((w, i) => { CODE_WORDS[String.fromCharCode(97 + i)] = w; });
 'zero one two three four five six seven eight nine'.split(' ').forEach((w, i) => { CODE_WORDS[String(i)] = w; });
 /** Spell a string out in code words (NATO style). Used by the attack simulator as an evasion no transform check can undo. */
+export const CODE_WORD_TO_CHAR: Record<string, string> = {};
+for (const [ch, w] of Object.entries(CODE_WORDS)) CODE_WORD_TO_CHAR[w] = ch;
 export const spellOut = (s: string): string => [...s.toLowerCase()].map((c) => CODE_WORDS[c] ?? c).join(' ');
 export const reverse = (s: string): string => [...s].reverse().join('');
 

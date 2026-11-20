@@ -7,7 +7,7 @@ export type SecretKind =
   | 'jwt' | 'private-key' | 'credit-card' | 'us-ssn' | 'iban' | 'bearer-token' | 'connection-string'
   | 'credential-assignment' | 'high-entropy-token';
 
-export interface SecretFinding { kind: SecretKind; /** A masked sample, never the full value. */ sample: string; definite: boolean; encoded?: string }
+export interface SecretFinding { kind: SecretKind; /** A masked sample, never the full value. */ sample: string; definite: boolean; encoded?: string; /** Where it sits in the scanned text (for an encoded secret: the encoded token). */ start?: number; end?: number }
 
 const mask = (s: string) => (s.length <= 8 ? '***' : `${s.slice(0, 4)}...(${s.length} chars)`);
 
@@ -56,14 +56,15 @@ const RULES: Rule[] = [
 /** Shapes that are only suspicious, not conclusive. They ask for approval instead of denying. */
 const HEURISTIC: SecretKind[] = ['credential-assignment', 'high-entropy-token'];
 
-function scanOne(text: string, encoded?: string): SecretFinding[] {
+function scanOne(text: string, encoded?: string, at?: [number, number]): SecretFinding[] {
   const out: SecretFinding[] = [];
   const explained: string[] = []; // raw text already explained by a conclusive rule
   for (const r of RULES) {
     for (const m of text.matchAll(r.re)) {
       if (r.check && !r.check(m[0])) continue;
       if (!HEURISTIC.includes(r.kind)) explained.push(m[0]);
-      out.push({ kind: r.kind, sample: mask(m[0]), definite: !HEURISTIC.includes(r.kind), ...(encoded ? { encoded } : {}) });
+      const span = at ?? [m.index ?? 0, (m.index ?? 0) + m[0].length];
+      out.push({ kind: r.kind, sample: mask(m[0]), definite: !HEURISTIC.includes(r.kind), start: span[0], end: span[1], ...(encoded ? { encoded } : {}) });
     }
   }
   for (const tok of text.split(/[\s"',;()<>]+/)) {
@@ -75,23 +76,23 @@ function scanOne(text: string, encoded?: string): SecretFinding[] {
 }
 
 /** Candidate encoded payloads: base64 (standard and url safe), hex and percent encoding, decoded one level. */
-function decodedViews(text: string): [string, string][] {
-  const views: [string, string][] = [];
+function decodedViews(text: string): [string, string, number, number][] {
+  const views: [string, string, number, number][] = [];
   for (const m of text.matchAll(/[A-Za-z0-9+/_-]{24,}={0,2}/g)) {
-    try { const d = b64decode(m[0].replace(/-/g, '+').replace(/_/g, '/')); if (/^[\x09\x0a\x0d\x20-\x7e]+$/.test(d)) views.push([d, 'base64']); } catch { /* not base64 */ }
+    try { const d = b64decode(m[0].replace(/-/g, '+').replace(/_/g, '/')); if (/^[\x09\x0a\x0d\x20-\x7e]+$/.test(d)) views.push([d, 'base64', m.index ?? 0, (m.index ?? 0) + m[0].length]); } catch { /* not base64 */ }
   }
   for (const m of text.matchAll(/(?:[0-9a-fA-F]{2}){12,}/g)) {
     const d = m[0].match(/../g)!.map((h) => String.fromCharCode(parseInt(h, 16))).join('');
-    if (/^[\x09\x0a\x0d\x20-\x7e]+$/.test(d)) views.push([d, 'hex']);
+    if (/^[\x09\x0a\x0d\x20-\x7e]+$/.test(d)) views.push([d, 'hex', m.index ?? 0, (m.index ?? 0) + m[0].length]);
   }
-  if (/%[0-9a-fA-F]{2}/.test(text)) { try { views.push([decodeURIComponent(text), 'url']); } catch { /* malformed */ } }
+  if (/%[0-9a-fA-F]{2}/.test(text)) { try { views.push([decodeURIComponent(text), 'url', 0, text.length]); } catch { /* malformed */ } }
   return views;
 }
 
 /** Find every kind of secret shaped data in the text, including one level of base64, hex and URL encoding. */
 export function detectSecrets(text: string): SecretFinding[] {
   const found = scanOne(text);
-  for (const [decoded, how] of decodedViews(text)) found.push(...scanOne(decoded, how).filter((f) => f.kind !== 'high-entropy-token'));
+  for (const [decoded, how, s, e] of decodedViews(text)) found.push(...scanOne(decoded, how, [s, e]).filter((f) => f.kind !== 'high-entropy-token'));
   // When the decoded contents are conclusive, the encoded wrapper itself is not worth reporting as a vague high entropy blob.
   const decodedConclusive = found.some((f) => f.encoded && f.definite);
   const kept = found.filter((f) => !(decodedConclusive && f.kind === 'high-entropy-token' && !f.encoded));
