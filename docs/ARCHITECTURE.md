@@ -60,3 +60,11 @@ flowchart LR
 ## MCP proxy
 
 `src/proxy.ts` sits on the stdio pipe between a client and a server and fails closed. It rewrites `tools/list` results to drop poisoned or drifted tools, answers blocked `tools/call` requests itself with `isError: true`, and observes results (text, resources, structured content) for provenance tracking. Requests it blocks are never written to the server. Calls before the first `tools/list`, batches containing `tools/call`, `tools/call` notifications and non JSON lines are dropped. An optional lockfile pins tools on first use. Rule R2 consults an optional `approve` callback (on the command line, `--approve-cmd`, where exit code 0 approves and everything else denies) and otherwise denies.
+
+## Audit log, config wrapper and real run data
+
+`src/audit.ts` is the pure chain logic: each entry stores the SHA-256 of its canonical JSON plus the previous entry's hash (the first points at `GENESIS`), arguments appear only as digests, and `verifyChain` reports the first entry that fails and why (edited, deleted, inserted, swapped, or the end no longer matching a stored anchor). `src/auditlog.ts` appends entries from the proxy (`--audit-log`). The same `audit.ts` runs in the browser for the Recorder section. A chain alone cannot prove the end was not cut off; that needs an anchor kept elsewhere.
+
+`src/wrap.ts` rewrites an MCP client config so each stdio server starts through `tripline proxy`, with a per server lockfile and audit log, a backup file, idempotence, and an exact `unwrap`. Remote servers are reported and left alone.
+
+`scripts/live-agent.ts` records full transcripts of live runs. `scripts/export-live.ts` removes local paths with `src/scrub.ts`, refuses to write anything that still looks like a path or API key, and produces `web/data/real-runs.json`, which `web/real.js` replays.

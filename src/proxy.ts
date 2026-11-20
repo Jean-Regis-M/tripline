@@ -2,6 +2,7 @@ import { spawn } from 'node:child_process';
 import { existsSync, readFileSync, writeFileSync } from 'node:fs';
 import { createInterface } from 'node:readline';
 import type { Readable, Writable } from 'node:stream';
+import { AuditLog } from './auditlog.ts';
 import { Guard, type Policy, type Verdict } from './guard.ts';
 import { inferPolicy } from './infer.ts';
 import { createLock, verifyLock } from './pin.ts';
@@ -18,6 +19,8 @@ export interface ProxyOptions {
   hidePoisonedTools?: boolean;
   /** Path of a lockfile. Created on first use (trust on first use); later drift hides changed or added tools. */
   lockPath?: string;
+  /** Append every decision to a tamper evident, hash chained JSON lines file (arguments are stored as digests only). */
+  auditPath?: string;
   /** Called when rule R2 asks for approval. Return true to allow. Without it, "ask" is treated as deny (fail closed). */
   approve?: (tool: string, args: Record<string, unknown>, verdict: Verdict) => Promise<boolean> | boolean;
   log?: (message: string) => void;
@@ -50,6 +53,9 @@ export function runProxy(opts: ProxyOptions, input: Readable = process.stdin, ou
   const log = opts.log ?? ((m: string) => process.stderr.write(`[tripline] ${m}\n`));
   const guard = new Guard({ allowedDestinations: opts.allowedDestinations, tools: { ...(opts.tools ?? {}) } });
   const hide = opts.hidePoisonedTools ?? true;
+  const auditLog = opts.auditPath ? new AuditLog(opts.auditPath) : undefined;
+  const audit = (event: string, f: Parameters<AuditLog['append']>[1] = {}) => { auditLog?.append(event, f); };
+  audit('start', { detail: `${opts.command} ${opts.args.join(' ')}` });
   let hidden = new Set<string>();
   let listed = false;
   const pending = new Map<string | number, { method: string; tool?: string }>();
@@ -63,18 +69,19 @@ export function runProxy(opts: ProxyOptions, input: Readable = process.stdin, ou
     let msg: any;
     try { msg = JSON.parse(line); } catch { log('dropped a line that is not valid JSON'); return; }
     if (Array.isArray(msg)) {
-      if (msg.some(isCall)) { log('dropped a JSON-RPC batch containing tools/call'); return rpcError(null, 'batched tools/call requests are not supported'); }
+      if (msg.some(isCall)) { log('dropped a JSON-RPC batch containing tools/call'); audit('drop', { decision: 'deny', detail: 'batch containing tools/call' }); return rpcError(null, 'batched tools/call requests are not supported'); }
       return void child.stdin.write(line + '\n');
     }
     if (isCall(msg)) {
-      if (msg.id === undefined || msg.id === null) { log('dropped a tools/call sent as a notification'); return; }
+      if (msg.id === undefined || msg.id === null) { log('dropped a tools/call sent as a notification'); audit('drop', { decision: 'deny', detail: 'tools/call sent as a notification' }); return; }
       const tool = String(msg.params?.name ?? '');
       const args = (msg.params?.arguments ?? {}) as Record<string, unknown>;
-      if (!listed) { log(`refused ${tool}: tools/list has not been seen`); return refuse(msg.id, 'call tools/list first so the policy can be derived.'); }
-      if (hidden.has(tool)) { log(`blocked call to hidden tool ${tool}`); return refuse(msg.id, `tool "${tool}" was removed because its manifest failed the scan or changed since it was pinned.`); }
+      if (!listed) { log(`refused ${tool}: tools/list has not been seen`); audit('tools/call', { tool, decision: 'deny', rules: ['PRE-LIST'], args }); return refuse(msg.id, 'call tools/list first so the policy can be derived.'); }
+      if (hidden.has(tool)) { log(`blocked call to hidden tool ${tool}`); audit('tools/call', { tool, decision: 'deny', rules: ['HIDDEN'], args }); return refuse(msg.id, `tool "${tool}" was removed because its manifest failed the scan or changed since it was pinned.`); }
       const v = guard.check(tool, args);
       let allowed = v.decision === 'allow';
       if (v.decision === 'ask' && opts.approve) allowed = await opts.approve(tool, args, v);
+      audit('tools/call', { tool, decision: v.decision === 'ask' ? (allowed ? 'approved' : 'ask-denied') : v.decision, rules: v.rules.map((r) => r.id), args });
       if (!allowed) {
         const why = v.rules.map((r) => `${r.id} ${r.title}`).join('; ');
         log(`${v.decision} ${tool}: ${why}`);
@@ -108,6 +115,7 @@ export function runProxy(opts: ProxyOptions, input: Readable = process.stdin, ou
           } else { writeFileSync(opts.lockPath, JSON.stringify(createLock(manifest), null, 2) + '\n'); log(`pinned ${tools.length} tools in ${opts.lockPath}`); }
         }
         guard.policy.tools = { ...inferPolicy(tools), ...(opts.tools ?? {}) };
+        audit('tools/list', { detail: `${tools.length} tools; findings: ${report.findings.length}; hidden: ${[...bad].join(',') || 'none'}` });
         hidden = hide ? bad : new Set();
         listed = true;
         if (hidden.size) { msg.result.tools = tools.filter((t) => !hidden.has(t.name)); log(`hid ${hidden.size} tool(s): ${[...hidden].join(', ')}`); }

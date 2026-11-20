@@ -1,38 +1,34 @@
 [
   {
     "id": "s1",
-    "text": "AI agents now read our email, browse the web and call third party tools. And they do what the text in front of them says. Hide one line in an email, and an agent will hand over your cloud keys. This is prompt injection, and asking the model nicely does not fix it."
+    "text": "AI agents read email, browse the web and call tools, and they do what the text in front of them says. Hide one line in a web page, and an agent will hand over your keys. Asking the model nicely does not fix that."
   },
   {
     "id": "s2",
-    "text": "Tripline takes a different approach. It does not trust the model. It tracks where every piece of data came from, and decides what the agent may do with it. In this animation, a stolen key is stopped at the wire, while a legitimate message to an approved address passes."
+    "text": "Tripline does not trust the model. It follows every piece of data, and decides what the agent may do with it. Here, a stolen key is stopped at the wire, while a legitimate message passes."
   },
   {
     "id": "s3",
-    "text": "Here is a real run. The user only asked to summarize the inbox. Without Tripline, the agent reads a poisoned message, opens the cloud credentials, and mails them to an attacker. With Tripline, the same agent runs, and the final send is blocked by rule R1, because it carries private data to a destination nobody approved."
+    "text": "Here is the attack, replayed. Without Tripline, a poisoned message makes the agent mail out cloud keys. With Tripline, the send is blocked, and the user's task still completes."
   },
   {
-    "id": "s4",
-    "text": "Attackers disguise data. Here the key is base64 encoded and posted to a web collector. Tripline fingerprints every encoding, so the call is still blocked."
-  },
-  {
-    "id": "s5",
-    "text": "What if the data is transformed so no copy can be matched? The session rule notices that this agent has seen untrusted content and private data, and asks a human before anything leaves."
-  },
-  {
-    "id": "s6",
-    "text": "Safety that breaks real work is useless. Emailing my own to do list to my own address passes untouched."
+    "id": "s3r",
+    "text": "But a scripted agent proves little. This is a real Gemini model, a real poisoned page and real network sockets. The model fetches the page, follows the hidden instruction, reads the secret file, and posts it to the attacker. Then it gives the user a perfectly normal summary. Behind Tripline, the same model makes the same attempt, and the call is refused. Whenever the model took the bait, the secret leaked without Tripline, and never behind it."
   },
   {
     "id": "s7",
-    "text": "Before any of this, the scanner inspects tool manifests. This poisoned math tool hides an instruction to read an SSH key, uses invisible characters, and tries to steer another tool. It is blocked, with evidence. Pin the manifest, simulate a rug pull where the server quietly edits a description, and the hash lockfile flags the drift."
+    "text": "Before any of this, the scanner inspects tool manifests. A poisoned tool is blocked with evidence, and a hash lockfile catches a rug pull, where a server quietly edits a tool after you approved it."
   },
   {
     "id": "s7d",
     "text": "Now try to beat it yourself. In the arena you are the attacker: write any message that sneaks the secret out. The X-ray shows where Tripline sees it hiding, even inside base64 or ROT13. One disguise, code words, does get through in a clean session, and we show that openly. With untrusted content around, rule R2 holds it."
   },
   {
+    "id": "s7r",
+    "text": "Every decision is written to a hash chained flight recorder, with digests instead of secrets. Edit a decision, delete an entry or swap two, and the verifier catches it at exactly that entry."
+  },
+  {
     "id": "s8",
-    "text": "Five of five attacks succeed unprotected and are stopped, and the legitimate task is never blocked. We are upfront about limits too. Tripline is a dependency free TypeScript engine that runs entirely in your browser, and it is open source. Tripline. Do not trust the text. Trust the wire."
+    "text": "Tripline is open source and runs entirely in your browser. One command wraps your real MCP config behind it, with a backup and an undo. Tripline. Do not trust the text. Trust the wire."
   }
 ]

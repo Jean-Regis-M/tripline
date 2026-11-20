@@ -18,3 +18,11 @@ Open a GitHub issue titled "Security" with a minimal reproduction. For anything 
 ## Web app hardening
 
 The app is static and has no backend. All rendering uses `textContent` and never `innerHTML`. The local server sets a strict Content Security Policy, `nosniff`, rejects methods other than GET and HEAD and blocks path traversal. All secrets in the demo are synthetic.
+
+## Audit log limits
+
+The hash chained log detects edits, deletions, insertions and swaps. It cannot detect that its last entries were removed unless you keep the head hash elsewhere and verify with `--anchor`. It records digests of arguments, never the arguments, and an attacker who controls the machine can still delete the whole file.
+
+## `tripline wrap`
+
+`wrap` changes your MCP client configuration. It writes a backup first and `unwrap` restores the original. Only stdio servers are wrapped; remote servers keep running unprotected, and the command says so.

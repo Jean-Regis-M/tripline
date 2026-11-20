@@ -105,3 +105,5 @@ for (const { sc, off, on } of results) {
 }
 
 import './arena.js';
+import './real.js';
+import './recorder.js';

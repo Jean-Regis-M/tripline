@@ -1,13 +1,24 @@
 import { spawn } from 'node:child_process';
-import { readFileSync, writeFileSync } from 'node:fs';
+import { copyFileSync, existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
+import { dirname, join, resolve } from 'node:path';
+import { fileURLToPath } from 'node:url';
 import { scanManifest } from './scanner.ts';
 import { createLock, verifyLock } from './pin.ts';
 import { runProxy } from './proxy.ts';
+import { verifyChain } from './audit.ts';
+import { unwrapConfig, wrapConfig } from './wrap.ts';
 import type { Manifest } from './types.ts';
 
 const argv = process.argv.slice(2);
 const usage = (): never => {
-  console.error('usage:\n  tripline scan|lock|verify <manifest.json> [lockfile]\n  tripline proxy [--allow a.com,b@c.org] [--policy policy.json] [--lock tripline.lock.json] [--approve-cmd "<command>"] -- <server command> [args]');
+  console.error([
+    'usage:',
+    '  tripline wrap <mcp-config.json> [--allow a.com,b@c.org] [--approve-cmd "<cmd>"] [--dry-run] [--out file]',
+    '  tripline unwrap <mcp-config.json>',
+    '  tripline proxy [--allow ...] [--policy policy.json] [--lock file] [--audit-log file] [--approve-cmd "<cmd>"] -- <server command> [args]',
+    '  tripline verify-log <audit.jsonl> [--anchor <head hash>]',
+    '  tripline scan|lock|verify <manifest.json> [lockfile]',
+  ].join('\n'));
   process.exit(2);
 };
 const load = (f: string) => JSON.parse(readFileSync(f, 'utf8'));
@@ -37,8 +48,48 @@ if (argv[0] === 'proxy') {
     allowedDestinations: [...(get('--allow')?.split(',').filter(Boolean) ?? []), ...(policy.allowedDestinations ?? [])],
     tools: policy.tools,
     lockPath: get('--lock'),
+    auditPath: get('--audit-log'),
     approve: get('--approve-cmd') ? approvalCommand(get('--approve-cmd')!) : undefined,
   });
+} else if (argv[0] === 'wrap' || argv[0] === 'unwrap') {
+  const file = argv[1];
+  if (!file) usage();
+  const flag = (n: string) => { const i = argv.indexOf(n); return i >= 0 ? argv[i + 1] : undefined; };
+  const config = JSON.parse(readFileSync(file, 'utf8'));
+  const outPath = flag('--out') ?? file;
+  const backup = `${file}.tripline-backup`;
+  const save = (data: unknown) => {
+    if (outPath === file && !existsSync(backup)) copyFileSync(file, backup);
+    writeFileSync(outPath, JSON.stringify(data, null, 2) + '\n');
+  };
+  if (argv[0] === 'wrap') {
+    const stateDir = resolve(dirname(file), 'tripline-state');
+    const { config: wrapped, report } = wrapConfig(config, {
+      node: process.execPath, cli: fileURLToPath(new URL('./cli.ts', import.meta.url)), stateDir,
+      allow: flag('--allow')?.split(',').filter(Boolean) ?? [], approveCmd: flag('--approve-cmd'),
+    });
+    for (const n of report.wrapped) console.log(`  wrapped   ${n}`);
+    for (const n of report.alreadyWrapped) console.log(`  already   ${n}`);
+    for (const s of report.skipped) console.log(`  skipped   ${s.name}: ${s.reason}`);
+    if (argv.includes('--dry-run')) console.log('\ndry run: nothing was written.');
+    else {
+      if (report.wrapped.length) mkdirSync(stateDir, { recursive: true });
+      save(wrapped);
+      console.log(`\nwrote ${outPath}${outPath === file ? ` (backup: ${backup})` : ''}\nlockfiles and audit logs: ${stateDir}\nRestart your MCP client to apply. Undo with: tripline unwrap ${file}`);
+    }
+  } else {
+    const { config: restored, restored: names } = unwrapConfig(config);
+    for (const n of names) console.log(`  restored  ${n}`);
+    save(restored);
+    console.log(`\nwrote ${outPath}`);
+  }
+} else if (argv[0] === 'verify-log') {
+  const file = argv[1];
+  if (!file) usage();
+  const anchorAt = argv.indexOf('--anchor');
+  const r = verifyChain(readFileSync(file, 'utf8').split('\n'), anchorAt >= 0 ? argv[anchorAt + 1] : undefined);
+  console.log(r.ok ? `OK: ${r.entries} entries, chain intact.\nhead: ${r.head}` : `BROKEN at entry ${r.brokenAt ?? r.entries}: ${r.reason}`);
+  process.exit(r.ok ? 0 : 1);
 } else {
   const [cmd, file, lockFile = 'tripline.lock.json'] = argv;
   if (!cmd || !file) usage();

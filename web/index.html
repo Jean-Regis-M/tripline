@@ -16,7 +16,7 @@
     <span>Tripline</span>
   </a>
   <nav aria-label="Sections">
-    <a href="#how">Method</a><a href="#replay">Replay</a><a href="#scan">Scanner</a><a href="#arena">Arena</a><a href="#bench">Results</a><a href="#limits">Limits</a>
+    <a href="#how">Method</a><a href="#replay">Replay</a><a href="#real">Real run</a><a href="#scan">Scanner</a><a href="#arena">Arena</a><a href="#recorder">Recorder</a><a href="#bench">Results</a><a href="#limits">Limits</a>
   </nav>
 </header>
 
@@ -52,6 +52,7 @@
     <figcaption><span class="dot bad"></span>stolen key stopped <span class="dot good"></span>legitimate send passes</figcaption>
   </figure>
   <dl class="stats" id="stats" aria-live="polite"></dl>
+  <p class="realstat" id="realStat"></p>
 </section>
 
 <section id="how" class="band">
@@ -75,8 +76,24 @@
   <p class="note">The attacked agent is a deterministic, intentionally gullible stand-in that obeys <code>ASSISTANT_ACTION</code> lines found in tool output, so every run is reproducible. Every secret is synthetic.</p>
 </section>
 
+<section id="real" class="band">
+  <header class="sec-head"><span class="no">03</span><h2>Real run</h2><p>Not a scripted stand-in: a real Gemini model, a real poisoned web page and real network sockets. This is the recorded transcript. Switch between the two runs.</p></header>
+  <div class="toolbar">
+    <button id="realOff" class="btn small on" aria-pressed="true">Without Tripline</button>
+    <button id="realOn" class="btn small" aria-pressed="false">Behind Tripline</button>
+    <button id="realPlay" class="btn small primary">Play it back</button>
+  </div>
+  <div class="real-grid">
+    <ol id="realFeed" class="feed" aria-live="polite"></ol>
+    <aside id="realFacts" class="facts" aria-live="polite"></aside>
+  </div>
+  <h3 class="subhead">Every completed run</h3>
+  <div class="tablewrap"><table id="realTable"><thead><tr><th>Model</th><th>Injection style</th><th>Unprotected: secret leaked</th><th>Behind Tripline: secret leaked</th><th>Behind Tripline: call blocked</th></tr></thead><tbody></tbody></table></div>
+  <p class="note" id="realNote"></p>
+</section>
+
 <section id="scan" class="band">
-  <header class="sec-head"><span class="no">03</span><h2>Scanner</h2><p>Paste any MCP style manifest, or load an example. Nothing leaves your browser.</p></header>
+  <header class="sec-head"><span class="no">04</span><h2>Scanner</h2><p>Paste any MCP style manifest, or load an example. Nothing leaves your browser.</p></header>
   <div class="toolbar">
     <button id="loadPoisoned" class="btn small">Poisoned example</button>
     <button id="loadClean" class="btn small">Clean example</button>
@@ -92,7 +109,7 @@
 </section>
 
 <section id="arena" class="band">
-  <header class="sec-head"><span class="no">04</span><h2>Arena</h2><p>You are the attacker. An agent holds a secret. Write any message that tries to sneak it out, and watch Tripline read it. Everything runs in your browser.</p></header>
+  <header class="sec-head"><span class="no">05</span><h2>Arena</h2><p>You are the attacker. An agent holds a secret. Write any message that tries to sneak it out, and watch Tripline read it. Everything runs in your browser.</p></header>
   <div class="vault"><span class="lab">The secret in the agent's memory (synthetic)</span><code id="vaultSecret"></code></div>
   <div class="presets" id="presets" role="group" aria-label="Disguises to try"></div>
   <div class="cols">
@@ -118,13 +135,29 @@
   <div class="score" id="score" aria-live="polite"></div>
 </section>
 
+<section id="recorder" class="band">
+  <header class="sec-head"><span class="no">06</span><h2>Flight recorder</h2><p>Every decision Tripline makes is written to a hash-chained log. Try to forge it. Arguments are stored only as digests, so the log can never leak a secret.</p></header>
+  <div class="toolbar">
+    <button id="recTamper" class="btn small">Edit a decision</button>
+    <button id="recDelete" class="btn small">Delete an entry</button>
+    <button id="recSwap" class="btn small">Swap two entries</button>
+    <button id="recCut" class="btn small">Cut off the end</button>
+    <button id="recReset" class="btn small primary">Reset</button>
+  </div>
+  <div class="cols">
+    <div class="col"><label for="recText" class="lab">audit.jsonl (editable)</label><textarea id="recText" spellcheck="false"></textarea>
+      <label for="recAnchor" class="lab" style="margin-top:12px">Head hash you stored elsewhere (the anchor)</label><input id="recAnchor" class="field" spellcheck="false"></div>
+    <div class="col"><span class="lab">Verification</span><div id="recOut" aria-live="polite"></div></div>
+  </div>
+</section>
+
 <section id="bench" class="band">
-  <header class="sec-head"><span class="no">05</span><h2>Results</h2><p>Computed live in your browser from the same scenarios the automated tests assert.</p></header>
+  <header class="sec-head"><span class="no">07</span><h2>Results</h2><p>Computed live in your browser from the same scenarios the automated tests assert.</p></header>
   <div class="tablewrap"><table id="benchTable"><thead><tr><th>Scenario</th><th>Type</th><th>Leak without</th><th>Leak with</th><th>Task completed</th><th>Calls blocked</th></tr></thead><tbody></tbody></table></div>
 </section>
 
 <section id="limits" class="band">
-  <header class="sec-head"><span class="no">06</span><h2>Limits</h2><p>What Tripline does not do.</p></header>
+  <header class="sec-head"><span class="no">08</span><h2>Limits</h2><p>What Tripline does not do.</p></header>
   <ul class="limits">
     <li><b>It is not a model.</b> The demo agent is scripted. Tripline's decisions come from deterministic rules, and a real model would only change what the agent tries to do. This is not a proof of security.</li>
     <li><b>Provenance is fragment based.</b> Copies, case and spacing changes, reversal, common encodings and Caesar style ciphers are caught. Spelling data out in other words, keyed ciphers or paraphrase are caught only by the session level approval rule, which costs a prompt for the user.</li>

@@ -56,6 +56,18 @@ await shot('17-arena-held-by-r2', '#arena');
 await page.locator('#tUnt').uncheck();
 await page.locator('#presets [data-id="many"]').click(); await page.locator('#sendBtn').click();
 await shot('18-arena-many-kinds', '#arena');
+// Real model runs and the flight recorder
+await page.locator('#realOff').click();
+if (!/YES/.test(await page.locator('#realFacts .fact b').first().innerText())) throw new Error('UI smoke test failed: the unprotected real run should show the secret reaching the attacker');
+await shot('19-real-run-unprotected', '#real');
+await page.locator('#realOn').click();
+if (!/NO\./.test(await page.locator('#realFacts .fact b').first().innerText())) throw new Error('UI smoke test failed: the protected real run should show the secret staying put');
+await shot('20-real-run-protected', '#real');
+await page.locator('#recReset').click(); await shot('21-flight-recorder-intact', '#recorder');
+await page.locator('#recTamper').click();
+if (!/BROKEN/.test(await page.locator('#recOut .verdict').innerText())) throw new Error('UI smoke test failed: a forged log must not verify');
+await shot('22-flight-recorder-forged', '#recorder');
+await page.locator('#recReset').click();
 await shot('09-results', '#bench');
 await shot('10-limits', '#limits');
 const m = await browser.newContext({ viewport: { width: 390, height: 844 }, deviceScaleFactor: 3, colorScheme: 'light', isMobile: true, reducedMotion: 'reduce' });

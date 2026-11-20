@@ -50,7 +50,13 @@ async function postWithRetry(url: string, init: RequestInit, attempts = 6): Prom
 export type Provider = 'anthropic' | 'gemini';
 export interface AgentOptions { baseUrl: string; apiKey: string; model: string; task: string; client: McpClient; maxTurns?: number; provider?: Provider }
 export interface AgentCall { name: string; args: Record<string, unknown>; blocked: boolean; result: string }
-export interface AgentResult { calls: AgentCall[]; final: string; turns: number }
+export type TranscriptEvent =
+  | { kind: 'user'; text: string }
+  | { kind: 'model'; text: string }
+  | { kind: 'call'; name: string; args: Record<string, unknown> }
+  | { kind: 'result'; name: string; text: string; blocked: boolean; isError: boolean };
+export interface AgentResult { transcript: TranscriptEvent[]; calls: AgentCall[]; final: string; turns: number }
+const clip = (t: string) => (t.length > 1500 ? t.slice(0, 1500) + '...' : t);
 
 /** Gemini's function declarations accept an OpenAPI subset of JSON Schema, so everything else is dropped. */
 const GEMINI_SCHEMA_KEYS = new Set(['type', 'format', 'description', 'nullable', 'enum', 'items', 'properties', 'required', 'minimum', 'maximum', 'minItems', 'maxItems', 'title']);
@@ -75,6 +81,7 @@ async function runGeminiAgent(o: AgentOptions): Promise<AgentResult> {
   });
   const contents: any[] = [{ role: 'user', parts: [{ text: o.task }] }];
   const calls: AgentCall[] = [];
+  const transcript: TranscriptEvent[] = [{ kind: 'user', text: o.task }];
   let final = '';
   for (let turn = 1; turn <= (o.maxTurns ?? 8); turn++) {
     const res = await postWithRetry(`${o.baseUrl}/v1beta/models/${o.model}:generateContent`, {
@@ -85,22 +92,24 @@ async function runGeminiAgent(o: AgentOptions): Promise<AgentResult> {
     if (!res.ok) throw new Error(`Gemini API ${res.status}: ${(await res.text()).replace(o.apiKey, '[key]').slice(0, 300)}`);
     const body: any = await res.json();
     const cand = body.candidates?.[0];
-    if (!cand?.content) return { calls, final: final || `[no candidate: ${body.promptFeedback?.blockReason ?? cand?.finishReason ?? 'empty'}]`, turns: turn };
+    if (!cand?.content) return { transcript, calls, final: final || `[no candidate: ${body.promptFeedback?.blockReason ?? cand?.finishReason ?? 'empty'}]`, turns: turn };
     contents.push(cand.content); // echo the model turn back unchanged (keeps thought signatures intact)
     const parts: any[] = cand.content.parts ?? [];
+    for (const p of parts) if (typeof p.text === 'string' && !p.thought && p.text.trim()) transcript.push({ kind: 'model', text: p.text });
     final = parts.filter((p) => typeof p.text === 'string' && !p.thought).map((p) => p.text).join('\n') || final;
     const uses = parts.filter((p) => p.functionCall);
-    if (!uses.length) return { calls, final, turns: turn };
+    if (!uses.length) return { transcript, calls, final, turns: turn };
     const responses: any[] = [];
     for (const p of uses) {
       const { name, args = {}, id } = p.functionCall;
       const r = await o.client.call(name, args);
+      transcript.push({ kind: 'call', name, args }, { kind: 'result', name, text: clip(r.text), blocked: r.isError && /Blocked by Tripline/.test(r.text), isError: r.isError });
       calls.push({ name, args, blocked: r.isError && /Blocked by Tripline/.test(r.text), result: r.text.slice(0, 200) });
       responses.push({ functionResponse: { name, ...(id ? { id } : {}), response: r.isError ? { error: r.text } : { result: r.text } } });
     }
     contents.push({ role: 'user', parts: responses });
   }
-  return { calls, final, turns: o.maxTurns ?? 8 };
+  return { transcript, calls, final, turns: o.maxTurns ?? 8 };
 }
 
 export async function runAgent(o: AgentOptions): Promise<AgentResult> {
@@ -108,6 +117,7 @@ export async function runAgent(o: AgentOptions): Promise<AgentResult> {
   const tools = (await o.client.list()).map((t) => ({ name: t.name, description: t.description ?? '', input_schema: t.inputSchema ?? { type: 'object', properties: {} } }));
   const messages: any[] = [{ role: 'user', content: o.task }];
   const calls: AgentCall[] = [];
+  const transcript: TranscriptEvent[] = [{ kind: 'user', text: o.task }];
   let final = '';
   for (let turn = 1; turn <= (o.maxTurns ?? 8); turn++) {
     const res = await postWithRetry(`${o.baseUrl}/v1/messages`, {
@@ -118,16 +128,18 @@ export async function runAgent(o: AgentOptions): Promise<AgentResult> {
     if (!res.ok) throw new Error(`Messages API ${res.status}: ${(await res.text()).slice(0, 300)}`);
     const body: any = await res.json();
     messages.push({ role: 'assistant', content: body.content });
+    for (const b of body.content as any[]) if (b.type === 'text' && b.text?.trim()) transcript.push({ kind: 'model', text: b.text });
     final = (body.content as any[]).filter((b) => b.type === 'text').map((b) => b.text).join('\n') || final;
     const uses = (body.content as any[]).filter((b) => b.type === 'tool_use');
-    if (!uses.length) return { calls, final, turns: turn };
+    if (!uses.length) return { transcript, calls, final, turns: turn };
     const results = [];
     for (const u of uses) {
       const r = await o.client.call(u.name, u.input ?? {});
+      transcript.push({ kind: 'call', name: u.name, args: u.input ?? {} }, { kind: 'result', name: u.name, text: clip(r.text), blocked: r.isError && /Blocked by Tripline/.test(r.text), isError: r.isError });
       calls.push({ name: u.name, args: u.input ?? {}, blocked: r.isError && /Blocked by Tripline/.test(r.text), result: r.text.slice(0, 200) });
       results.push({ type: 'tool_result', tool_use_id: u.id, content: r.text, is_error: r.isError });
     }
     messages.push({ role: 'user', content: results });
   }
-  return { calls, final, turns: o.maxTurns ?? 8 };
+  return { transcript, calls, final, turns: o.maxTurns ?? 8 };
 }

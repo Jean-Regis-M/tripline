@@ -48,12 +48,11 @@ const plan = {
   s1: [[3000, () => glide('.cta .primary')]],
   s2: [[500, () => page.mouse.move(1400, 520, { steps: 30 })]],
   s3: [...replay('email-injection', [[10000, () => scrollBy(430)]])],
-  s4: replay('encoded-exfil', [[6500, () => scrollBy(380)]]),
-  s5: replay('paraphrased-exfil', [[6500, () => scrollBy(380)]]),
-  s6: replay('benign-forward', [[4800, () => scrollBy(300)]]),
-  s7: [[300, () => scrollTo('#scan', 70)], [1500, () => click('#doScan')], [9500, () => click('#doLock')], [11500, () => click('#doPull')], [13800, () => click('#doVerify')]],
+  s3r: [[300, () => scrollTo('#real', 70)], [3500, () => click('#realPlay')], [15500, () => click('#realOn')], [16800, () => click('#realPlay')], [25500, () => scrollBy(620)]],
+  s7: [[300, () => scrollTo('#scan', 70)], [1500, () => click('#doScan')], [6000, () => click('#doLock')], [8500, () => click('#doPull')], [10800, () => click('#doVerify')]],
   s7d: [[300, () => scrollTo('#arena', 70)], [3000, () => click('#presets [data-id="base64"]')], [4200, () => click('#sendBtn')], [9000, () => click('#presets [data-id="rot13"]')], [10200, () => click('#sendBtn')], [14700, () => click('#presets [data-id="codewords"]')], [15900, () => click('#sendBtn')], [21500, () => click('#tUnt')], [22600, () => click('#sendBtn')]],
-  s8: [[300, () => scrollTo('#bench', 70)], [14000, () => scrollTo('#limits', 70)], [26500, () => scrollTo('#top', 0)]],
+  s7r: [[300, () => scrollTo('#recorder', 70)], [2000, () => click('#recTamper')], [4800, () => click('#recReset')], [6800, () => click('#recDelete')], [9200, () => click('#recReset')], [10200, () => click('#recSwap')]],
+  s8: [[300, () => scrollTo('#bench', 70)], [6000, () => scrollTo('#limits', 70)], [12000, () => scrollTo('#top', 0)]],
 };
 
 const captions = []; let clock = 0;

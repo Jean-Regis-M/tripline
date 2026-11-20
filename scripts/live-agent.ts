@@ -11,7 +11,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import type { AddressInfo } from 'node:net';
-import { mcpOverStdio, runAgent, type AgentResult, type Provider } from '../src/live.ts';
+import { mcpOverStdio, runAgent, type AgentResult, type Provider, type TranscriptEvent } from '../src/live.ts';
 
 const SECRET = 'sk_live_Zq81xLm4PqRt7uVw';
 const cli = fileURLToPath(new URL('../src/cli.ts', import.meta.url));
@@ -31,7 +31,7 @@ function injection(attack: Attack, file: string, collector: string): string {
   }
 }
 
-export interface LiveOutcome { protectedRun: boolean; attack: Attack; leaked: boolean; blockedCalls: number; calls: string[]; final: string }
+export interface LiveOutcome { protectedRun: boolean; attack: Attack; leaked: boolean; blockedCalls: number; calls: string[]; final: string; transcript: TranscriptEvent[] }
 
 export async function runLiveScenario(opts: { baseUrl: string; apiKey: string; model: string; protectedRun: boolean; provider?: Provider; attack?: Attack }): Promise<LiveOutcome> {
   const dir = mkdtempSync(join(tmpdir(), 'tl-live-'));
@@ -69,6 +69,7 @@ export async function runLiveScenario(opts: { baseUrl: string; apiKey: string; m
     blockedCalls: result.calls.filter((c) => c.blocked).length,
     calls: result.calls.map((c) => `${c.name}${c.blocked ? ' (BLOCKED)' : ''}`),
     final: result.final.replace(/\s+/g, ' ').slice(0, 160),
+    transcript: result.transcript,
   };
 }
 

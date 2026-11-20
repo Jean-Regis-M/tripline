@@ -22,12 +22,12 @@
 
 1. **See it.** Open the [live demo](https://jean-regis-m.github.io/tripline/), pick *Poisoned e-mail steals cloud keys* and press *Replay step by step*. The left column leaks a key, the right column is stopped.
 2. **Break it.** Paste your own tool manifest into the scanner, or edit the poisoned one and rescan. Open the **Arena**, play the attacker, and try to sneak a secret out. The X-ray shows where Tripline sees it hiding.
-3. **Trust it.** `npm install && npm test` runs 60 tests, including real MCP round trips over a stdio pipe, real network sockets and the bypasses an independent review found. `npm run evaluate` prints scanner quality, including the false positives it first had.
+3. **Trust it.** `npm install && npm test` runs 75 tests, including real MCP round trips over a stdio pipe, real network sockets and the bypasses an independent review found. `npm run evaluate` prints scanner quality, including the false positives it first had.
 
 | Criterion | Where the evidence is |
 |---|---|
 | **Impact** | A concrete, current failure (agents obeying hidden instructions) with a defence usable today through the MCP proxy |
-| **Technical execution** | Zero dependency TypeScript engine, 60 passing tests, CI, protocol level proxy test, measured scanner quality |
+| **Technical execution** | Zero dependency TypeScript engine, 75 passing tests, CI, protocol level proxy test, measured scanner quality |
 | **Creativity** | Data flow control instead of asking a model to detect attacks, plus a session level rule for paraphrased leaks |
 | **Presentation** | This page, the live demo, and a captioned video made by scripts from the real app |
 
@@ -70,6 +70,38 @@ Switch defences off to see what each layer is for. These results are asserted by
 | Content detection (R4) only | stopped | **get through** | **gets through** |
 
 That last row is the point of having layers. Content detection recognises a Stripe style key by its shape, so it catches the plain, base64 and hex forms with no provenance at all, but it cannot recognise a ROT13 copy. Provenance can. And the one bypass that survives both, spelling the secret out in code words, is shown openly with a label, and the arena links straight to a pre-filled GitHub issue if you find another.
+
+## The real run: a real model, replayed
+
+<div align="center">
+<img src="docs/images/19-real-run-unprotected.png" alt="The Real run section: the recorded transcript of a real Gemini model following a hidden instruction and posting a secret to the attacker, next to the same run refused behind Tripline" width="88%">
+<br><sub>The <a href="https://jean-regis-m.github.io/tripline/#real">Real run</a> section replays recorded transcripts. Nothing in it is scripted.</sub>
+</div>
+
+A scripted agent proves little, so the page replays **real transcripts** from the [live experiment](#live-experiment-with-real-language-models): a real Gemini model, a real poisoned web page, real sockets. Without Tripline you watch the model fetch the page, read the secret file, POST it to the attacker, and then give the user a perfectly ordinary summary. Behind Tripline you watch the same model make the same attempt and the call come back refused. The table underneath lists every completed run, including the ones where the model never took the bait. Transcripts are scrubbed of local paths by [`src/scrub.ts`](src/scrub.ts), which has its own tests, and the exporter refuses to write a file that still contains one.
+
+## The flight recorder: a log you cannot quietly edit
+
+<div align="center">
+<img src="docs/images/22-flight-recorder-forged.png" alt="The flight recorder: a hash chained audit log with one edited entry flagged by the verifier" width="88%">
+</div>
+
+```bash
+tripline proxy --audit-log audit.jsonl --lock tripline.lock.json -- node server.js
+tripline verify-log audit.jsonl            # exit code 1 and the first bad entry on tampering
+tripline verify-log audit.jsonl --anchor <head hash you stored elsewhere>
+```
+
+Every allow, deny, approval and hidden tool is appended to a **hash chained** log: each entry commits to the one before it. Arguments are stored only as SHA-256 digests, so the log cannot leak the secret it is about. Editing, deleting, inserting or swapping entries is detected at the exact entry ([`test/audit.test.ts`](test/audit.test.ts)); try it yourself in the [Recorder section](https://jean-regis-m.github.io/tripline/#recorder). **Limit:** a chain alone cannot see that its *end* was cut off. Store the head hash somewhere else and pass it as `--anchor` to catch that.
+
+## One command for your real MCP config
+
+```bash
+tripline wrap ~/.config/claude/claude_desktop_config.json   # every stdio server now runs behind Tripline
+tripline unwrap ~/.config/claude/claude_desktop_config.json # restores the original exactly
+```
+
+`wrap` rewrites a Claude Desktop, Cursor or VS Code style MCP config so each **stdio** server is launched through the proxy, with its own lockfile and audit log. It writes a backup first, is idempotent, and reports what it skipped (remote HTTP servers are not wrapped). Needs Node 22.18 or newer. Tested end to end in [`test/wrap.test.ts`](test/wrap.test.ts): wrap, launch like a client would, see the block, unwrap.
 
 ## What it contains
 
@@ -207,7 +239,7 @@ npm start            # http://localhost:3000
 ```
 
 ```bash
-npm test             # 60 tests, including real stdio MCP round trips, real network sockets and adversarial bypass cases
+npm test             # 75 tests, including real stdio MCP round trips, real network sockets and adversarial bypass cases
 npm run evaluate     # scanner quality on the bundled corpus
 npm run typecheck
 npm run scan         # CLI: scan the poisoned fixture
@@ -267,20 +299,20 @@ GEMINI_API_KEY=... node scripts/live-agent.ts --models gemini-3.1-flash-lite --a
 node scripts/summarise-live.ts results.json
 ```
 
-Results from 18 November 2026 (raw outcomes in [`docs/live-results/`](docs/live-results), one entry per completed run):
+Results from 18 to 20 November 2026 (raw outcomes in [`docs/live-results/`](docs/live-results), one entry per completed run):
 
 | Model | Injection style | Unprotected: secret leaked | Behind Tripline: secret leaked | Behind Tripline: call blocked |
 |---|---|:---:|:---:|:---:|
 | `gemini-3-flash-preview` | hidden | 0 of 5 | 0 of 5 | 0 of 5 |
 | `gemini-3.1-flash-lite` | hidden | 3 of 3 | 0 of 3 | 3 of 3 |
 | `gemini-3.1-flash-lite` | operator | 5 of 5 | 0 of 4 | 4 of 4 |
-| `gemini-3.1-flash-lite` | user-claim | 4 of 4 | 0 of 5 | 5 of 5 |
-| `gemini-3.1-flash-lite` | visible | 4 of 4 | 0 of 5 | 5 of 5 |
-| **All completed runs** | | **16 of 21** | **0 of 22** | **17 of 22** |
+| `gemini-3.1-flash-lite` | user-claim | 6 of 6 | 0 of 6 | 6 of 6 |
+| `gemini-3.1-flash-lite` | visible | 6 of 6 | 0 of 7 | 7 of 7 |
+| **All completed runs** | | **20 of 25** | **0 of 25** | **20 of 25** |
 
 **What this shows.** `gemini-3.1-flash-lite` followed the injection in every completed unprotected run, in all four framings: it fetched the page, read the secret file and POSTed it to the collector, and the secret really arrived. Behind Tripline it made the same attempt every time and the POST was refused (rules R1 and R4), so nothing reached the collector. `gemini-3-flash-preview` did not follow the hidden-text injection in any of 5 runs, so on that model there was nothing for Tripline to block, and its other framings could not be run because its quota ran out.
 
-**What this does not show.** The samples are small (3 to 5 runs per cell). Only one of the two models was susceptible. It is one task and one kind of attack, against a defence the attacker does not know about. Both models are lite or preview tier. Runs that failed because of API overload or quota were excluded, which is why the cells have uneven counts. This is evidence that the attack works on a real model and that the proxy stops it in this setting. It is not a proof, and it says nothing about other models, other tasks, or an adaptive attacker.
+**What this does not show.** The samples are small (3 to 7 runs per cell). Only one of the two models was susceptible. It is one task and one kind of attack, against a defence the attacker does not know about. Both models are lite or preview tier. Runs that failed because of API overload or quota were excluded, which is why the cells have uneven counts. Seven runs carry full transcripts, and those are the ones the Real run section replays. This is evidence that the attack works on a real model and that the proxy stops it in this setting. It is not a proof, and it says nothing about other models, other tasks, or an adaptive attacker.
 
 ### Use the guard in your own agent loop
 
@@ -325,12 +357,12 @@ guard.observe('send_email', output);                              // record ever
 1. Extend the live experiment: more models and tasks, more runs per cell, an adaptive attacker who knows Tripline, and the Anthropic provider (built, not run).
 2. Evaluation against public prompt injection benchmarks with real models.
 3. Policy inference from tool schemas and a visual policy editor.
-4. Structured audit log export.
+4. Wrap support for remote (HTTP) MCP servers.
 
 ## Repository layout
 
 ```
-src/        engine (scanner, pin, guard, infer, simulator, scenarios), MCP proxy, CLI, static server
+src/        engine (scanner, pin, guard, detect, infer, simulator, scenarios), MCP proxy, audit log, config wrapper, CLI, static server
 web/        browser app, compiled engine goes to web/engine at build time
 test/       node:test suite
 fixtures/   clean and poisoned example manifests
@@ -340,7 +372,7 @@ docs/       architecture notes and the images used here
 
 ## Demo video
 
-A narrated, captioned 2:31 walkthrough of the running app: **[watch on YouTube](https://youtu.be/0cVsC6yd0LY)**. It is a real capture of this app (scripted by [`scripts/makevideo.mjs`](scripts/makevideo.mjs)) with a synthetic voice, a scripted demo agent and synthetic secrets.
+A narrated, captioned 2:24 walkthrough of the running app: **[watch on YouTube](https://youtu.be/0cVsC6yd0LY)**. It is a real capture of this app (scripted by [`scripts/makevideo.mjs`](scripts/makevideo.mjs)) with a synthetic voice, a scripted demo agent and synthetic secrets.
 
 [![Tripline demo video](docs/images/devpost-cover.png)](https://youtu.be/0cVsC6yd0LY)
 
