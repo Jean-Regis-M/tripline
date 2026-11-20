@@ -49,6 +49,10 @@ flowchart LR
 | TP008 | high or low | Free form parameters able to carry stolen data |
 | TP009 | medium | Imperatives addressed to the model (review only, common in honest docs) |
 
+## X-ray and Arena
+
+`src/explain.ts` locates, by position, where in a message private or secret shaped data hides: it searches for every re-encoding of each private fragment (exact, and with case or spacing changes mapped back onto the original text) and merges the content detector's findings. `src/arena.ts` wraps a `Guard`, a synthetic secret and an independent attacker's decoder (plain, base64, hex, base32, URL encoding, double encodings, reversal, every Caesar shift, Atbash, ROT47 and code words). The decoder is deliberately separate from the guard, so a bypass is reported as "recoverable and not stopped", and it cannot recognise an encoding nobody thought of, which is what the arena invites visitors to find. `web/arena.js` is the interface; it runs the same compiled engine as the tests.
+
 ## Build and test
 
 `npm run build` runs `tsc -p tsconfig.web.json`. Tests use Node's built in runner on TypeScript sources directly. CI runs typecheck, build and tests, then deploys `web/` to GitHub Pages from the main branch.

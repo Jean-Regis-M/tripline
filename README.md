@@ -21,13 +21,13 @@
 ## For judges: a 60 second path
 
 1. **See it.** Open the [live demo](https://jean-regis-m.github.io/tripline/), pick *Poisoned e-mail steals cloud keys* and press *Replay step by step*. The left column leaks a key, the right column is stopped.
-2. **Break it.** Paste your own tool manifest into the scanner, or edit the poisoned one and rescan. Paste any message into the **Detector** and watch it recognise many kinds of secret at once, even hidden inside base64.
-3. **Trust it.** `npm install && npm test` runs 51 tests, including real MCP round trips over a stdio pipe, real network sockets and the bypasses an independent review found. `npm run evaluate` prints scanner quality, including the false positives it first had.
+2. **Break it.** Paste your own tool manifest into the scanner, or edit the poisoned one and rescan. Open the **Arena**, play the attacker, and try to sneak a secret out. The X-ray shows where Tripline sees it hiding.
+3. **Trust it.** `npm install && npm test` runs 60 tests, including real MCP round trips over a stdio pipe, real network sockets and the bypasses an independent review found. `npm run evaluate` prints scanner quality, including the false positives it first had.
 
 | Criterion | Where the evidence is |
 |---|---|
 | **Impact** | A concrete, current failure (agents obeying hidden instructions) with a defence usable today through the MCP proxy |
-| **Technical execution** | Zero dependency TypeScript engine, 51 passing tests, CI, protocol level proxy test, measured scanner quality |
+| **Technical execution** | Zero dependency TypeScript engine, 60 passing tests, CI, protocol level proxy test, measured scanner quality |
 | **Creativity** | Data flow control instead of asking a model to detect attacks, plus a session level rule for paraphrased leaks |
 | **Presentation** | This page, the live demo, and a captioned video made by scripts from the real app |
 
@@ -52,6 +52,25 @@ It answers with a handful of small, deterministic rules (R1 to R5) that never co
 <br><sub>A real capture of the app: the same attack, unprotected on the left and behind Tripline on the right.</sub>
 </div>
 
+## The Arena: try to beat it
+
+<div align="center">
+<img src="docs/images/arena.gif" alt="The Arena: the attacker tries plain text, base64, ROT13 and code words; Tripline stops all but the documented one, then holds it with rule R2" width="88%">
+<br><sub>A real capture of the <a href="https://jean-regis-m.github.io/tripline/#arena">live Arena</a>. You play the attacker.</sub>
+</div>
+
+An agent holds a synthetic secret. **You write the message it sends.** Tripline judges it live, and an **X-ray** underlines exactly where it sees the secret hiding, including inside base64, hex or a Caesar cipher. A separate *attacker's decoder*, independent of the guard, says whether the secret could really be recovered from your message, so "Tripline missed it" and "it was recoverable" are two different facts.
+
+Switch defences off to see what each layer is for. These results are asserted by [`test/arena.test.ts`](test/arena.test.ts):
+
+| Defences | Plain, base64, hex | Spaced, reversed, ROT13, Atbash, base32, double base64 | Code words |
+|---|:---:|:---:|:---:|
+| Provenance (R1) and content (R4), clean session | stopped | stopped | **gets through** (documented) |
+| Same, with untrusted content in the session | stopped | stopped | **held** by R2 |
+| Content detection (R4) only | stopped | **get through** | **gets through** |
+
+That last row is the point of having layers. Content detection recognises a Stripe style key by its shape, so it catches the plain, base64 and hex forms with no provenance at all, but it cannot recognise a ROT13 copy. Provenance can. And the one bypass that survives both, spelling the secret out in code words, is shown openly with a label, and the arena links straight to a pre-filled GitHub issue if you find another.
+
 ## What it contains
 
 | Layer | What it does | Where |
@@ -62,7 +81,7 @@ It answers with a handful of small, deterministic rules (R1 to R5) that never co
 | **Runtime guard** | Labels outputs as *private* or *untrusted*, fingerprints private fragments (plus base64, hex and URL encodings) and checks every outbound call. | [`src/guard.ts`](src/guard.ts) |
 | **Content detector** | Recognises **many kinds of secret at once by what they are**, with no provenance needed: cloud keys, GitHub, Google, Slack and Stripe tokens, JWTs, private keys, card numbers (Luhn checked), SSNs, IBANs (checksum checked), bearer tokens, connection strings and credential assignments, including inside base64, hex and URL encoding. | [`src/detect.ts`](src/detect.ts) |
 | **Attack lab** | A reproducible, deliberately gullible agent plus six scenarios, so every claim can be replayed. | [`src/simulator.ts`](src/simulator.ts), [`src/scenarios.ts`](src/scenarios.ts) |
-| **Web app** | The same engine compiled for the browser: six replayable attacks, the scanner, and a live detector. No server, no data leaves the page. | [`web/`](web) |
+| **Web app** | The same engine compiled for the browser: six replayable attacks, the scanner, and the Arena. No server, no data leaves the page. | [`web/`](web) |
 
 ## The rules
 
@@ -188,7 +207,7 @@ npm start            # http://localhost:3000
 ```
 
 ```bash
-npm test             # 51 tests, including real stdio MCP round trips, real network sockets and adversarial bypass cases
+npm test             # 60 tests, including real stdio MCP round trips, real network sockets and adversarial bypass cases
 npm run evaluate     # scanner quality on the bundled corpus
 npm run typecheck
 npm run scan         # CLI: scan the poisoned fixture
