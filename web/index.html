@@ -16,7 +16,7 @@
     <span>Tripline</span>
   </a>
   <nav aria-label="Sections">
-    <a href="#how">Method</a><a href="#replay">Replay</a><a href="#scan">Scanner</a><a href="#detect">Detector</a><a href="#bench">Results</a><a href="#limits">Limits</a>
+    <a href="#how">Method</a><a href="#replay">Replay</a><a href="#scan">Scanner</a><a href="#arena">Arena</a><a href="#bench">Results</a><a href="#limits">Limits</a>
   </nav>
 </header>
 
@@ -28,7 +28,7 @@
     <p class="deck">Tripline decides what it is <strong>allowed</strong> to do. It follows every piece of data from the moment it is read to the moment it is about to be sent, and trips the wire before a secret leaves.</p>
     <div class="cta">
       <a class="btn primary" href="#replay">Watch an attack get stopped</a>
-      <a class="btn" href="#scan">Scan a tool manifest</a>
+      <a class="btn" href="#arena">Try to beat it</a>
     </div>
   </div>
   <figure class="hero-art" aria-label="Diagram: a secret leaving an agent is blocked by Tripline while a legitimate message passes">
@@ -91,19 +91,31 @@
   </div>
 </section>
 
-<section id="detect" class="band">
-  <header class="sec-head"><span class="no">04</span><h2>Detector</h2><p>Paste any outbound payload. Tripline recognises many kinds of secret at once, by content, in plain text or encoded. Nothing leaves your browser.</p></header>
-  <div class="toolbar">
-    <button id="loadMixed" class="btn small">Mixed secrets</button>
-    <button id="loadEncoded" class="btn small">Encoded secret</button>
-    <button id="loadBenign" class="btn small">Harmless text</button>
-    <button id="doDetect" class="btn small primary">Check this outbound call</button>
-  </div>
+<section id="arena" class="band">
+  <header class="sec-head"><span class="no">04</span><h2>Arena</h2><p>You are the attacker. An agent holds a secret. Write any message that tries to sneak it out, and watch Tripline read it. Everything runs in your browser.</p></header>
+  <div class="vault"><span class="lab">The secret in the agent's memory (synthetic)</span><code id="vaultSecret"></code></div>
+  <div class="presets" id="presets" role="group" aria-label="Disguises to try"></div>
   <div class="cols">
-    <div class="col"><label for="payload" class="lab">Message body about to be sent</label><textarea id="payload" spellcheck="false"></textarea>
-      <label for="dest" class="lab" style="margin-top:12px">Destination</label><input id="dest" class="field" value="drop@evil.test" spellcheck="false"></div>
-    <div class="col"><span class="lab">Verdict</span><div id="detectOut" class="out" aria-live="polite"><p class="muted">Load a sample, then press the button. The sample secrets are synthetic.</p></div></div>
+    <div class="col">
+      <label for="payload" class="lab">Your message (what the agent will send)</label>
+      <textarea id="payload" spellcheck="false" aria-describedby="arenaHelp"></textarea>
+      <p id="arenaHelp" class="note">Pick a disguise above, or write your own. The verdict updates as you type.</p>
+      <label for="dest" class="lab" style="margin-top:10px">Send it to</label>
+      <input id="dest" class="field" value="attacker@evil.test" spellcheck="false">
+      <fieldset class="toggles">
+        <legend class="lab">Defences (switch them off to see what each one does)</legend>
+        <label><input type="checkbox" id="tProv" checked> Track where data came from <i>(R1)</i></label>
+        <label><input type="checkbox" id="tDet" checked> Recognise secrets by content <i>(R4)</i></label>
+        <label><input type="checkbox" id="tUnt"> The session has read untrusted content <i>(turns on R2)</i></label>
+      </fieldset>
+      <button id="sendBtn" class="btn primary">Send it</button>
+    </div>
+    <div class="col">
+      <span class="lab">Verdict</span>
+      <div id="arenaOut" aria-live="polite"></div>
+    </div>
   </div>
+  <div class="score" id="score" aria-live="polite"></div>
 </section>
 
 <section id="bench" class="band">

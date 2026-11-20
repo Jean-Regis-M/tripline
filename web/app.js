@@ -2,9 +2,6 @@ import { scenarios } from './engine/scenarios.js';
 import { runScenario } from './engine/simulator.js';
 import { scanManifest } from './engine/scanner.js';
 import { createLock, verifyLock } from './engine/pin.js';
-import { Guard } from './engine/guard.js';
-import { detectSecrets } from './engine/detect.js';
-import { b64 } from './engine/util.js';
 
 const $ = (s) => document.querySelector(s);
 const el = (tag, cls, text) => { const e = document.createElement(tag); if (cls) e.className = cls; if (text !== undefined) e.textContent = text; return e; };
@@ -107,38 +104,4 @@ for (const { sc, off, on } of results) {
   tb.append(tr);
 }
 
-// ---------- detector (many kinds of secret at once, by content)
-const SAMPLES = {
-  mixed: [
-    'Hi, here is the export you asked for.',
-    'aws_secret_access_key = wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY',
-    'github: ghp_a1B2c3D4e5F6g7H8i9J0k1L2m3N4o5P6q7R8',
-    'session: eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiIxMjM0NTY3ODkwIn0.abcdefghijklmnop',
-    '-----BEGIN OPENSSH PRIVATE KEY-----',
-    'customer card 4111 1111 1111 1111, ssn 123-45-6789',
-    'bank GB82 WEST 1234 5698 7654 32',
-    'db: postgres://admin:hunter2pass@db.internal/prod',
-  ].join('\n'),
-  encoded: 'backup=' + b64('stripe: sk_live_Zq81xLm4PqRt7uVw'),
-  benign: 'Summary: exam timetable update; IT notice. See you in January. Commit 9fceb02d0ae598e95dc970b74767f19372d61af8 fixes the layout.',
-};
-const loadSample = (k) => { $('#payload').value = SAMPLES[k]; $('#detectOut').replaceChildren(el('p', 'muted', 'Press "Check this outbound call".')); };
-$('#loadMixed').onclick = () => loadSample('mixed');
-$('#loadEncoded').onclick = () => loadSample('encoded');
-$('#loadBenign').onclick = () => loadSample('benign');
-$('#doDetect').onclick = () => {
-  const body = $('#payload').value, to = $('#dest').value.trim();
-  const guard = new Guard({ allowedDestinations: ['student.test'], tools: { send_email: { egress: true, destinationParam: 'to' } } });
-  const v = guard.check('send_email', { to, body });
-  const found = detectSecrets(body);
-  const box = el('div');
-  const word = v.decision === 'deny' ? 'BLOCKED' : v.decision === 'ask' ? 'HELD FOR APPROVAL' : 'ALLOWED';
-  box.append(el('div', 'verdict ' + (v.decision === 'deny' ? 'block' : v.decision === 'ask' ? 'review' : 'pass'), word));
-  const kinds = [...new Set(found.map((f) => f.kind))];
-  box.append(el('p', '', found.length ? `${kinds.length} kind${kinds.length === 1 ? '' : 's'} of secret recognised in one call:` : 'No secret shaped data found.'));
-  for (const f of found) { const r = el('div', 'kind'); r.append(el('b', '', f.kind + (f.encoded ? ` (${f.encoded})` : '')), el('span', '', f.sample + (f.definite ? '' : '  suspicious only'))); box.append(r); }
-  for (const r of v.rules) { const d = el('div', 'find'); d.append(el('b', '', `${r.id} ${r.title}. `), r.detail); box.append(d); }
-  if (v.decision === 'allow' && to) box.append(el('p', 'muted', 'Destination student.test is allow-listed in this demo, so data may go there.'));
-  $('#detectOut').replaceChildren(box);
-};
-loadSample('mixed');
+import './arena.js';
